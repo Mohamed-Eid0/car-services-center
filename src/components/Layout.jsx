@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
-const Layout = ({ user, onLogout, children, title }) => {
+const Layout = ({ user, onLogout, children }) => {
   const { t, i18n } = useTranslation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -39,7 +39,6 @@ const Layout = ({ user, onLogout, children, title }) => {
 
     if (user.role === 'technician') {
       items.push(
-        { path: '/recorded-clients', icon: Users, label: t('layout.recordedClients') },
         { path: '/work-orders', icon: ClipboardList, label: t('layout.workOrders') }
       )
     }
@@ -86,53 +85,17 @@ const Layout = ({ user, onLogout, children, title }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <div 
-          className="flex items-center justify-between h-16 px-6 border-b cursor-pointer"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-        >
-          <div className="flex items-center space-x-2" onClick={(e) => {
-            e.stopPropagation();
-            setSidebarOpen(!sidebarOpen);
-            // Add slide animation for content
-            const mainContent = document.querySelector('main');
-            if (mainContent) {
-              mainContent.style.transition = 'transform 0.3s ease-in-out';
-              mainContent.style.transform = sidebarOpen ? 'translateY(0)' : 'translateY(20px)';
-            }
-          }}>
-            <div className="relative hover:scale-105 transition-transform">
-              <Car className="h-8 w-8 text-blue-600" />
-              <Wrench className="h-4 w-4 text-orange-500 absolute -bottom-1 -right-1" />
-            </div>
-            <span className="text-lg font-bold text-gray-900">{t('layout.serviceCenter')}</span>
-          </div>
+    <div className="min-h-screen bg-gray-50" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+      {/* Fixed Top Navbar */}
+      <div className="fixed top-0 left-0 right-0 h-16 bg-white shadow-sm border-b flex items-center justify-between px-6 z-40">
+        <div className="flex items-center space-x-4">
           <Button
             variant="ghost"
             size="sm"
-            className="lg:hidden"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSidebarOpen(false);
-            }}
+            onClick={() => setSidebarOpen(!sidebarOpen)}
           >
-            <X className="h-4 w-4" />
+            <Menu className="h-5 w-5" />
           </Button>
-        </div>
-
-        <div className="p-4 border-b">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <span className="text-blue-600 font-medium">
@@ -149,8 +112,32 @@ const Layout = ({ user, onLogout, children, title }) => {
             </div>
           </div>
         </div>
+        
+        <div className="flex items-center space-x-2">
+          <div className="relative">
+            <Car className="h-8 w-8 text-blue-600" />
+            <Wrench className="h-4 w-4 text-orange-500 absolute -bottom-1 -right-1" />
+          </div>
+          <span className="text-lg font-bold text-gray-900">{t('layout.serviceCenter')}</span>
+        </div>
+      </div>
 
-        <nav className="flex-1 p-4">
+      {/* Slide-in Menu from Right */}
+      <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50 ${
+        sidebarOpen ? 'translate-x-0' : 'translate-x-full'
+      }`}>
+        <div className="flex items-center justify-between h-16 px-6 border-b">
+          <h2 className="text-lg font-bold text-gray-900">{t('layout.menu')}</h2>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <nav className="p-4">
           <ul className="space-y-2">
             {navigationItems.map((item) => {
               const Icon = item.icon
@@ -159,7 +146,7 @@ const Layout = ({ user, onLogout, children, title }) => {
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                       isActive
                         ? 'bg-blue-100 text-blue-700'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -175,7 +162,7 @@ const Layout = ({ user, onLogout, children, title }) => {
           </ul>
         </nav>
 
-        <div className="p-4 border-t">
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t">
           <Button
             variant="ghost"
             className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -187,33 +174,12 @@ const Layout = ({ user, onLogout, children, title }) => {
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="lg:pl-64">
-        {/* Top bar */}
-        <div className="h-16 bg-white shadow-sm border-b flex items-center justify-between px-6">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
-          </div>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-500">
-              {t('layout.welcomeUser', { first_name: user.first_name || user.username })}
-            </span>
-          </div>
-        </div>
-
-        {/* Page content */}
-        <main className="p-6 max-w-7xl mx-auto transition-transform duration-300 ease-in-out">
+      {/* Page content with top padding */}
+      <main className="pt-16">
+        <div className="p-4 sm:p-6 mt-8 max-w-7xl mx-auto">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

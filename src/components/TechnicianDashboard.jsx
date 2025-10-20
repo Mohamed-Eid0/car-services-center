@@ -132,7 +132,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     <Layout user={user} onLogout={onLogout} title={t('technicianDashboard.title')}>
       <div className="space-y-6" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
         {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-orange-600 to-orange-700 rounded-lg p-6 text-white">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 rounded-lg p-6 text-white">
           <h2 className="text-2xl font-bold mb-2">
             {t('technicianDashboard.welcomeBack', { first_name: user.first_name || user.username })}!
           </h2>

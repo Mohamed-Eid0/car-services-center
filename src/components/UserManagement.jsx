@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react'
-import { useTranslation } from 'react-i18next'
 import Layout from './Layout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+// Table components not needed - using native HTML table
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Users, Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react'
+import { Users, Plus, Edit, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import api from '../services/api'
 import { useData } from '../contexts/DataContext'
 
 const UserManagement = ({ user, onLogout }) => {
-  const { t :_t} = useTranslation()
   const { invalidateUsers } = useData()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -23,7 +21,6 @@ const UserManagement = ({ user, onLogout }) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [selectedUser, setSelectedUser] = useState(null)
-  const [showPasswords, setShowPasswords] = useState({})
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -189,13 +186,6 @@ const UserManagement = ({ user, onLogout }) => {
     setIsEditDialogOpen(true)
   }
 
-  const togglePasswordVisibility = (userId) => {
-    setShowPasswords(prev => ({
-      ...prev,
-      [userId]: !prev[userId]
-    }))
-  }
-
   const getRoleLabel = (role) => {
     const roleObj = roles.find(r => r.value === role)
     return roleObj ? roleObj.label : role
@@ -231,241 +221,215 @@ const UserManagement = ({ user, onLogout }) => {
   return (
     <Layout user={user} onLogout={onLogout} title="إدارة المستخدمين">
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div className="flex-1">
-                <CardTitle className="flex items-center gap-2 mb-2">
-                  <Users className="h-6 w-6 text-blue-600" />
-                  <span>مستخدمو النظام</span>
-                </CardTitle>
-                <CardDescription className="text-sm text-gray-500">
-                  إدارة حسابات المستخدمين والأدوار والصلاحيات
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="w-[200px]">
-                  <Input
-                    placeholder="بحث عن مستخدم..."
-                    className="max-w-sm"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
-              </div>
-              {(user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (
-                <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus className="h-4 w-4 mr-2" />
-                      إضافة مستخدم
+        {/* Header with Add Button */}
+        <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4" dir="rtl">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+              <Users className="h-6 w-6 text-blue-600" />
+              <span>مستخدمو النظام</span>
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">إدارة حسابات المستخدمين والأدوار والصلاحيات</p>
+          </div>
+          {(user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white flex-shrink-0">
+                  <Plus className="h-4 w-4 ml-2" />
+                  إضافة مستخدم
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]" dir="rtl">
+                <DialogHeader>
+                  <DialogTitle>إنشاء مستخدم جديد</DialogTitle>
+                  <DialogDescription>
+                    املأ تفاصيل المستخدم الجديد
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleCreateUser}>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="username">اسم المستخدم</Label>
+                      <Input
+                        id="username"
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        placeholder="أدخل اسم المستخدم (3 أحرف على الأقل)"
+                        minLength={3}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="password">كلمة المرور</Label>
+                      <Input
+                        id="password"
+                        type="password"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        placeholder="أدخل كلمة المرور (4 أحرف على الأقل)"
+                        minLength={4}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="first_name">الاسم الأول</Label>
+                      <Input
+                        id="first_name"
+                        value={formData.first_name}
+                        onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                        placeholder="أدخل الاسم الأول"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="last_name">الاسم الأخير</Label>
+                      <Input
+                        id="last_name"
+                        value={formData.last_name}
+                        onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                        placeholder="أدخل الاسم الأخير"
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="role">الدور</Label>
+                      <Select
+                        value={formData.role}
+                        onValueChange={(value) => setFormData({ ...formData, role: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {roles.filter(role => canCreateRole(role.value)).map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <DialogFooter className="gap-2">
+                    <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                      إلغاء
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>إنشاء مستخدم جديد</DialogTitle>
-                      <DialogDescription>
-                        املأ تفاصيل المستخدم الجديد
-                      </DialogDescription>
-                    </DialogHeader>
-                    <form onSubmit={handleCreateUser}>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="username" className="text-right">
-                            اسم المستخدم
-                          </Label>
-                          <Input
-                            id="username"
-                            value={formData.username}
-                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                            className="col-span-3"
-                            placeholder="أدخل اسم المستخدم (3 أحرف على الأقل)"
-                            minLength={3}
-                            required
-                          />
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700">إنشاء مستخدم</Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+
+        {/* Search Box */}
+        <Card dir="rtl">
+          <CardContent className="pt-6">
+            <Input
+              placeholder="بحث عن مستخدم..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </CardContent>
+        </Card>
+
+        {/* Users Table */}
+        <Card dir="rtl">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="border-b">
+                  <tr>
+                    <th className="text-right p-4 font-medium">اسم المستخدم</th>
+                    <th className="text-right p-4 font-medium">الاسم الكامل</th>
+                    <th className="text-right p-4 font-medium">الدور</th>
+                    <th className="text-right p-4 font-medium">الحالة</th>
+                    <th className="text-right p-4 font-medium">الإجراءات</th>
+                  </tr>
+                </thead>
+              
+                <tbody>
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center text-gray-500">
+                          <Users className="h-12 w-12 mb-3 text-gray-400" />
+                          <p className="text-lg font-medium">لا يوجد مستخدمين</p>
+                          <p className="text-sm mt-1">ابدأ بإضافة مستخدم جديد</p>
                         </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="password" className="text-right">
-                            كلمة المرور
-                          </Label>
-                          <Input
-                            id="password"
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                            className="col-span-3"
-                            placeholder="أدخل كلمة المرور (4 أحرف على الأقل)"
-                            minLength={4}
-                            required
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="first_name" className="text-right">
-                            الاسم الأول
-                          </Label>
-                          <Input
-                            id="first_name"
-                            value={formData.first_name}
-                            onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                            className="col-span-3"
-                            placeholder="أدخل الاسم الأول"
-                            required
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="last_name" className="text-right">
-                            الاسم الأخير
-                          </Label>
-                          <Input
-                            id="last_name"
-                            value={formData.last_name}
-                            onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                            className="col-span-3"
-                            placeholder="أدخل الاسم الأخير"
-                            required
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="role" className="text-right">
-                            الدور
-                          </Label>
-                          <Select
-                            value={formData.role}
-                            onValueChange={(value) => setFormData({ ...formData, role: value })}
-                          >
-                            <SelectTrigger className="col-span-3">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {roles.filter(role => canCreateRole(role.value)).map((role) => (
-                                <SelectItem key={role.value} value={role.value}>
-                                  {role.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <DialogFooter className="gap-2">
-                        <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                          إلغاء
-                        </Button>
-                        <Button type="submit">إنشاء مستخدم</Button>
-                      </DialogFooter>
-                    </form>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>اسم المستخدم</TableHead>
-                  <TableHead>الاسم الكامل</TableHead>
-                  <TableHead>الدور</TableHead>
-                  {user.role === 'SUPER_ADMIN' && <TableHead>كلمة المرور</TableHead>}
-                  <TableHead>الحالة</TableHead>
-                  <TableHead>الإجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={user.role === 'SUPER_ADMIN' ? 6 : 5} className="text-center py-12">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        <Users className="h-12 w-12 mb-3 text-gray-400" />
-                        <p className="text-lg font-medium">لا يوجد مستخدمين</p>
-                        <p className="text-sm mt-1">ابدأ بإضافة مستخدم جديد</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : users.filter(userItem => 
-                  userItem.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  `${userItem.first_name} ${userItem.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-                ).length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={user.role === 'SUPER_ADMIN' ? 6 : 5} className="text-center py-12">
-                      <div className="flex flex-col items-center justify-center text-gray-500">
-                        <Users className="h-12 w-12 mb-3 text-gray-400" />
-                        <p className="text-lg font-medium">لا توجد نتائج</p>
-                        <p className="text-sm mt-1">لم يتم العثور على مستخدمين بهذا الاسم</p>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  users.filter(userItem => 
+                      </td>
+                    </tr>
+                  ) : users.filter(userItem => 
                     userItem.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
                     `${userItem.first_name} ${userItem.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
-                  ).map((userItem) => (
-                  <TableRow key={userItem.id}>
-                    <TableCell className="font-medium">{userItem.username}</TableCell>
-                    <TableCell>{`${userItem.first_name} ${userItem.last_name}`}</TableCell>
-                    <TableCell>
-                      <Badge className={getRoleColor(userItem.role)}>
-                        {getRoleLabel(userItem.role)}
-                      </Badge>
-                    </TableCell>
-                    {user.role === 'SUPER_ADMIN' && (
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-mono text-sm">
-                            {showPasswords[userItem.id] ? '••••••••' : '••••••••'}
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => togglePasswordVisibility(userItem.id)}
-                          >
-                            {showPasswords[userItem.id] ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
+                  ).length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="text-center py-12">
+                        <div className="flex flex-col items-center justify-center text-gray-500">
+                          <Users className="h-12 w-12 mb-3 text-gray-400" />
+                          <p className="text-lg font-medium">لا توجد نتائج</p>
+                          <p className="text-sm mt-1">لم يتم العثور على مستخدمين بهذا الاسم</p>
                         </div>
-                      </TableCell>
-                    )}
-                    <TableCell>
-                      <Badge variant={userItem.is_active ? 'default' : 'secondary'}>
-                        {userItem.is_active ? 'نشط' : 'غير نشط'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        {canManageUser(userItem) && (
-                          <>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openEditDialog(userItem)}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteUser(userItem.id)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      </td>
+                    </tr>
+                  ) : (
+                    users.filter(userItem => 
+                      userItem.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                      `${userItem.first_name} ${userItem.last_name}`.toLowerCase().includes(searchTerm.toLowerCase())
+                    ).map((userItem) => (
+                      <tr key={userItem.id} className="border-b hover:bg-gray-50">
+                        <td className="text-right p-4 font-medium">{userItem.username}</td>
+                        <td className="text-right p-4">{`${userItem.first_name} ${userItem.last_name}`}</td>
+                        <td className="text-right p-4">
+                          <Badge className={getRoleColor(userItem.role)}>
+                            {getRoleLabel(userItem.role)}
+                          </Badge>
+                        </td>
+                        <td className="text-right p-4">
+                          <Badge variant={userItem.is_active ? 'default' : 'secondary'}>
+                            {userItem.is_active ? 'نشط' : 'غير نشط'}
+                          </Badge>
+                        </td>
+                        <td className="text-right p-4">
+                          <div className="flex gap-2 justify-end">
+                            {canManageUser(userItem) ? (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditDialog(userItem)}
+                                  className="hover:bg-blue-50"
+                                >
+                                  <Edit className="h-4 w-4 ml-1" />
+                                  تعديل
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteUser(userItem.id)}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4 ml-1" />
+                                  حذف
+                                </Button>
+                              </>
+                            ) : (
+                              <span className="text-sm text-gray-400">لا توجد صلاحيات</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
 
         {/* Edit User Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[500px]" dir="rtl">
             <DialogHeader>
               <DialogTitle>تعديل المستخدم</DialogTitle>
               <DialogDescription>
@@ -474,10 +438,8 @@ const UserManagement = ({ user, onLogout }) => {
             </DialogHeader>
             <form onSubmit={handleUpdateUser}>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit_username" className="text-right">
-                    اسم المستخدم
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_username">اسم المستخدم</Label>
                   <Input
                     id="edit_username"
                     value={formData.username}
@@ -488,10 +450,8 @@ const UserManagement = ({ user, onLogout }) => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit_password" className="text-right">
-                    كلمة المرور الجديدة
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_password">كلمة المرور الجديدة</Label>
                   <Input
                     id="edit_password"
                     type="password"
@@ -502,10 +462,8 @@ const UserManagement = ({ user, onLogout }) => {
                     minLength={4}
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit_first_name" className="text-right">
-                    الاسم الأول
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_first_name">الاسم الأول</Label>
                   <Input
                     id="edit_first_name"
                     value={formData.first_name}
@@ -515,10 +473,8 @@ const UserManagement = ({ user, onLogout }) => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit_last_name" className="text-right">
-                    الاسم الأخير
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_last_name">الاسم الأخير</Label>
                   <Input
                     id="edit_last_name"
                     value={formData.last_name}
@@ -528,15 +484,13 @@ const UserManagement = ({ user, onLogout }) => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit_role" className="text-right">
-                    الدور
-                  </Label>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit_role">الدور</Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value) => setFormData({ ...formData, role: value })}
                   >
-                    <SelectTrigger className="col-span-3">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -553,7 +507,7 @@ const UserManagement = ({ user, onLogout }) => {
                 <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   إلغاء
                 </Button>
-                <Button type="submit">تحديث المستخدم</Button>
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700">تحديث المستخدم</Button>
               </DialogFooter>
             </form>
           </DialogContent>

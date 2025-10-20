@@ -109,11 +109,13 @@ function App() {
             element={<DashboardComponent user={user} onLogout={handleLogout} />} 
           />
           
-          {/* Shared Routes - Available to all authenticated users */}
-          <Route 
-            path="/recorded-clients" 
-            element={<RecordedClients user={user} onLogout={handleLogout} />} 
-          />
+          {/* Shared Routes - Available to all authenticated users except technician */}
+          {(user.role?.toLowerCase() === 'receptionist' || user.role?.toLowerCase() === 'admin' || user.role?.toLowerCase() === 'super_admin') && (
+            <Route 
+              path="/recorded-clients" 
+              element={<RecordedClients user={user} onLogout={handleLogout} />} 
+            />
+          )}
           <Route 
             path="/work-orders" 
             element={<WorkOrders user={user} onLogout={handleLogout} />} 

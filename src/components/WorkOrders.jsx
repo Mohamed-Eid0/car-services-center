@@ -400,11 +400,7 @@ const WorkOrders = ({ user, onLogout }) => {
                                   </Button>
                                 )}
                               </div>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                {t('workOrdersPage.inProgress')}
-                              </Badge>
-                            )}
+                            ) : null}
                           </TableCell>
                         </TableRow>
                       )
@@ -416,56 +412,58 @@ const WorkOrders = ({ user, onLogout }) => {
           </CardContent>
         </Card>
 
-        {/* Recent Completed Orders */}
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('workOrdersPage.recentCompletedOrders')}</CardTitle>
-            <CardDescription>
-              {t('workOrdersPage.ordersReadyForBilling')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {workOrders
-                .filter(order => order.status === 'completed')
-                .slice(0, 3)
-                .map((order) => {
-                  const client = clients.find(c => c.id === order.client_id)
-                  const car = cars.find(c => c.id === order.car_id)
-                  
-                  return (
-                    <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
-                      <div className="flex items-center space-x-4">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
+        {/* Recent Completed Orders - Hidden for Technicians */}
+        {user.role?.toLowerCase() !== 'technician' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('workOrdersPage.recentCompletedOrders')}</CardTitle>
+              <CardDescription>
+                {t('workOrdersPage.ordersReadyForBilling')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {workOrders
+                  .filter(order => order.status === 'completed')
+                  .slice(0, 3)
+                  .map((order) => {
+                    const client = clients.find(c => c.id === order.client_id)
+                    const car = cars.find(c => c.id === order.car_id)
+                    
+                    return (
+                      <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg bg-green-50">
+                        <div className="flex items-center space-x-4">
+                          <div className="p-2 bg-green-100 rounded-lg">
+                            <CheckCircle className="h-5 w-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">
+                              {client?.first_name} {client?.last_name} - {car?.plate}
+                            </p>
+                            <p className="text-sm text-gray-600">{order.complaint}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">
-                            {client?.first_name} {client?.last_name} - {car?.plate}
-                          </p>
-                          <p className="text-sm text-gray-600">{order.complaint}</p>
-                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleBilling(order.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <DollarSign className="h-4 w-4 mr-1" />
+                          {t('workOrdersPage.createBill')}
+                        </Button>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleBilling(order.id)}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        {t('workOrdersPage.createBill')}
-                      </Button>
-                    </div>
-                  )
-                })}
-              
-              {workOrders.filter(order => order.status === 'completed').length === 0 && (
-                <p className="text-center text-gray-500 py-4">
-                  {t('workOrdersPage.noCompletedOrdersReadyForBilling')}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    )
+                  })}
+                
+                {workOrders.filter(order => order.status === 'completed').length === 0 && (
+                  <p className="text-center text-gray-500 py-4">
+                    {t('workOrdersPage.noCompletedOrdersReadyForBilling')}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   )

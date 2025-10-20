@@ -86,7 +86,19 @@ const initializeData = () => {
         role: UserRole.TECHNICIAN,
         is_active: true,
         created_at: new Date().toISOString()
+      },
+        {
+        id: 4,
+        username: "technician2",
+        password: "tech1234",
+        first_name: "كريم",
+        last_name: "الخول",
+        role: UserRole.TECHNICIAN,
+        is_active: true,
+        created_at: new Date().toISOString()
       }
+
+
     ];
     setStorage(STORAGE_KEYS.USERS, defaultUsers);
   }
