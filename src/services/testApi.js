@@ -92,7 +92,7 @@ const initializeData = () => {
         username: "technician2",
         password: "tech1234",
         first_name: "كريم",
-        last_name: "الخول",
+        last_name: "حازم",
         role: UserRole.TECHNICIAN,
         is_active: true,
         created_at: new Date().toISOString()
@@ -104,75 +104,75 @@ const initializeData = () => {
   }
 
   // Initialize clients
-  if (!getStorage(STORAGE_KEYS.CLIENTS)) {
-    const defaultClients = [
-      {
-        id: 1,
-        first_name: "Ahmed",
-        last_name: "Hassan",
-        phone: "+201234567890",
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        first_name: "Sara",
-        last_name: "Mohamed",
-        phone: "+201234567891",
-        created_at: new Date().toISOString()
-      }
-    ];
-    setStorage(STORAGE_KEYS.CLIENTS, defaultClients);
-  }
+  // if (!getStorage(STORAGE_KEYS.CLIENTS)) {
+  //   const defaultClients = [
+  //     {
+  //       id: 1,
+  //       first_name: "Ahmed",
+  //       last_name: "Hassan",
+  //       phone: "+201234567890",
+  //       created_at: new Date().toISOString()
+  //     },
+  //     {
+  //       id: 2,
+  //       first_name: "Sara",
+  //       last_name: "Mohamed",
+  //       phone: "+201234567891",
+  //       created_at: new Date().toISOString()
+  //     }
+  //   ];
+  //   setStorage(STORAGE_KEYS.CLIENTS, defaultClients);
+  // }
 
   // Initialize cars
-  if (!getStorage(STORAGE_KEYS.CARS)) {
-    const defaultCars = [
-      {
-        id: 1,
-        client_id: 1,
-        plate: "ABC-1234",
-        brand: "Toyota",
-        model: "Corolla",
-        counter: 50000,
-        notes: "Regular customer",
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        client_id: 2,
-        plate: "XYZ-5678",
-        brand: "Honda",
-        model: "Civic",
-        counter: 30000,
-        notes: null,
-        created_at: new Date().toISOString()
-      }
-    ];
-    setStorage(STORAGE_KEYS.CARS, defaultCars);
-  }
+  // if (!getStorage(STORAGE_KEYS.CARS)) {
+  //   const defaultCars = [
+  //     {
+  //       id: 1,
+  //       client_id: 1,
+  //       plate: "ABC1234",
+  //       brand: "Toyota",
+  //       model: "Corolla",
+  //       counter: 50000,
+  //       notes: "Regular customer",
+  //       created_at: new Date().toISOString()
+  //     },
+  //     {
+  //       id: 2,
+  //       client_id: 2,
+  //       plate: "XYZ5678",
+  //       brand: "Honda",
+  //       model: "Civic",
+  //       counter: 30000,
+  //       notes: null,
+  //       created_at: new Date().toISOString()
+  //     }
+  //   ];
+  //   setStorage(STORAGE_KEYS.CARS, defaultCars);
+  // }
 
   // Initialize work orders
-  if (!getStorage(STORAGE_KEYS.WORK_ORDERS)) {
-    const defaultWorkOrders = [
-      {
-        id: 1,
-        client_id: 1,
-        car_id: 1,
-        complaint: "Engine making strange noise",
-        deposit: 100,
-        services: ["Oil Change", "General Inspection"],
-        oil_change: "5W-30 Full Synthetic",
-        oil_confirmed: true,
-        wash_confirmed: false,
-        status: WorkOrderStatus.ASSIGNED,
-        technician_id: 3,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        completed_at: null
-      }
-    ];
-    setStorage(STORAGE_KEYS.WORK_ORDERS, defaultWorkOrders);
-  }
+  // if (!getStorage(STORAGE_KEYS.WORK_ORDERS)) {
+    // const defaultWorkOrders = [
+    //   {
+    //     id: 1,
+    //     client_id: 1,
+    //     car_id: 1,
+    //     complaint: "Engine making strange noise",
+    //     deposit: 100,
+    //     services: ["Oil Change", "General Inspection"],
+    //     oil_change: "5W-30 Full Synthetic",
+    //     oil_confirmed: true,
+    //     wash_confirmed: false,
+    //     status: WorkOrderStatus.ASSIGNED,
+    //     technician_id: 3,
+    //     created_at: new Date().toISOString(),
+    //     updated_at: new Date().toISOString(),
+    //     completed_at: null
+    //   }
+    // ];
+    // setStorage(STORAGE_KEYS.WORK_ORDERS, defaultWorkOrders);
+  // }
 
   // Initialize tech reports
   if (!getStorage(STORAGE_KEYS.TECH_REPORTS)) {
@@ -181,88 +181,14 @@ const initializeData = () => {
 
   // Initialize stock items
   if (!getStorage(STORAGE_KEYS.STOCK_ITEMS)) {
-    const defaultStock = [
-      {
-        id: 1,
-        item: "Oil Filter",
-        origin: "Japan",
-        serial: "OF-12345",
-        buy_price: 50,
-        sell_price: 80,
-        quantity: 25,
-        minimum_stock: 10,
-        is_oil: false,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        item: "5W-30 Full Synthetic Oil",
-        origin: "USA",
-        serial: "OIL-5W30-001",
-        buy_price: 200,
-        sell_price: 300,
-        quantity: 50,
-        minimum_stock: 20,
-        is_oil: true,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 3,
-        item: "Brake Pads",
-        origin: "Germany",
-        serial: "BP-67890",
-        buy_price: 150,
-        sell_price: 250,
-        quantity: 15,
-        minimum_stock: 10,
-        is_oil: false,
-        created_at: new Date().toISOString()
-      }
-    ];
-    setStorage(STORAGE_KEYS.STOCK_ITEMS, defaultStock);
+    // Start with an empty list; items will be added via the UI
+    setStorage(STORAGE_KEYS.STOCK_ITEMS, []);
   }
 
   // Initialize services
   if (!getStorage(STORAGE_KEYS.SERVICES)) {
-    const defaultServices = [
-      {
-        id: 1,
-        name: "Oil Change",
-        description: "Complete oil change service",
-        price: 150,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        name: "Brake Service",
-        description: "Brake inspection and service",
-        price: 200,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 3,
-        name: "Car Wash - Interior",
-        description: "Interior cleaning",
-        price: 50,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      },
-      {
-        id: 4,
-        name: "Car Wash - Exterior",
-        description: "Exterior cleaning",
-        price: 75,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-    setStorage(STORAGE_KEYS.SERVICES, defaultServices);
+    // Start with an empty list; services will be added via the UI
+    setStorage(STORAGE_KEYS.SERVICES, []);
   }
 
   // Initialize billing

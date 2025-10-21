@@ -38,11 +38,16 @@ const Store = ({ user, onLogout }) => {
     supplier: '',
     minimum_stock: 5
   })
+  const [serviceFormData, setServiceFormData] = useState({
+    name: '',
+    description: '',
+    price: 0,
+    is_active: true
+  })
 
   useEffect(() => {
     fetchStockItems()
     fetchServices()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterType])
 
   const fetchServices = async () => {
@@ -59,15 +64,16 @@ const Store = ({ user, onLogout }) => {
     e.preventDefault()
     try {
       if (selectedService) {
-        await api.updateService(selectedService.id, formData)
+        await api.updateService(selectedService.id, serviceFormData)
         toast.success('تم تحديث الخدمة بنجاح')
       } else {
-        await api.createService(formData)
+        await api.createService(serviceFormData)
         toast.success('تم إضافة الخدمة بنجاح')
       }
       invalidateStock()
       setIsServiceDialogOpen(false)
       setSelectedService(null)
+      setServiceFormData({ name: '', description: '', price: 0, is_active: true })
       fetchServices()
     } catch (error) {
       console.error('Error saving service:', error)
@@ -92,8 +98,8 @@ const Store = ({ user, onLogout }) => {
   const fetchStockItems = async () => {
     try {
       setLoading(true)
-      const isOil = filterType === 'oils' ? true : filterType === 'parts' ? false : null
-      const response = await stockAPI.getAll(isOil, searchTerm)
+      // Fetch all items; filter locally using filterType and searchTerm
+      const response = await stockAPI.getAll()
       setStockItems(response || [])
     } catch (error) {
       console.error('Error fetching stock items:', error)
@@ -114,7 +120,8 @@ const Store = ({ user, onLogout }) => {
         buy_price: formData.unit_price,
         sell_price: formData.unit_price * 1.2, // 20% markup
         quantity: formData.quantity,
-        is_oil: formData.is_oil
+        is_oil: formData.is_oil,
+        minimum_stock: formData.minimum_stock
       }
       
       await stockAPI.create(backendData)
@@ -139,7 +146,8 @@ const Store = ({ user, onLogout }) => {
         buy_price: formData.unit_price,
         sell_price: formData.unit_price * 1.2, // 20% markup
         quantity: formData.quantity,
-        is_oil: formData.is_oil
+        is_oil: formData.is_oil,
+        minimum_stock: formData.minimum_stock
       }
       
       await stockAPI.update(selectedItem.id, backendData)
@@ -196,20 +204,38 @@ const Store = ({ user, onLogout }) => {
   }
 
   const filteredItems = stockItems.filter(item =>
-    item.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    // filter by type first
+    (filterType === 'all' || (filterType === 'oils' && item.is_oil) || (filterType === 'parts' && !item.is_oil)) &&
+    // then search
+    (
+      item.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    )
   )
 
   const outOfStockItems = stockItems.filter(item => item.quantity === 0)
-  const lowStockItems = stockItems.filter(item => item.quantity > 0 && item.quantity <= item.minimum_stock)
+  const lowStockItems = stockItems.filter(item => item.quantity > 0 && item.quantity < (item.minimum_stock ?? 5))
   const oilItems = stockItems.filter(item => item.is_oil)
   const partItems = stockItems.filter(item => !item.is_oil)
 
   const getStockStatus = (item) => {
     if (item.quantity === 0) return { label: 'نفد المخزون', color: 'bg-red-100 text-red-800' }
-    if (item.quantity <= item.minimum_stock) return { label: 'مخزون منخفض', color: 'bg-yellow-100 text-yellow-800' }
+    if (item.quantity < (item.minimum_stock ?? 5)) return { label: 'مخزون منخفض', color: 'bg-yellow-100 text-yellow-800' }
     return { label: 'متوفر', color: 'bg-green-100 text-green-800' }
   }
+
+  const openServiceEditDialog = (service) => {
+    setSelectedService(service)
+    setServiceFormData({
+      name: service.name || '',
+      description: service.description || '',
+      price: service.price || 0,
+      is_active: service.is_active ?? true
+    })
+    setIsServiceDialogOpen(true)
+  }
+
+  
 
   if (loading) {
     return (
@@ -616,13 +642,9 @@ const Store = ({ user, onLogout }) => {
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="text-lg font-semibold">إدارة الخدمات الإضافية</h3>
                   <Button onClick={() => {
-                    setFormData({
-                      name: '',
-                      description: '',
-                      price: 0,
-                      is_active: true
-                    });
-                    setIsCreateDialogOpen(true);
+                    setServiceFormData({ name: '', description: '', price: 0, is_active: true })
+                    setSelectedService(null)
+                    setIsServiceDialogOpen(true)
                   }}>
                     <Plus className="h-4 w-4 mr-2" />
                     إضافة خدمة
@@ -635,7 +657,6 @@ const Store = ({ user, onLogout }) => {
                       <TableHead>اسم الخدمة</TableHead>
                       <TableHead>الوصف</TableHead>
                       <TableHead>السعر</TableHead>
-                      <TableHead>الحالة</TableHead>
                       <TableHead>الإجراءات</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -645,17 +666,13 @@ const Store = ({ user, onLogout }) => {
                         <TableCell>{service.name}</TableCell>
                         <TableCell>{service.description || '-'}</TableCell>
                         <TableCell>${service.price}</TableCell>
-                        <TableCell>
-                          <Badge className={service.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                            {service.is_active ? 'نشط' : 'غير نشط'}
-                          </Badge>
-                        </TableCell>
+
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openEditDialog(service)}
+                              onClick={() => openServiceEditDialog(service)}
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
@@ -695,8 +712,8 @@ const Store = ({ user, onLogout }) => {
                   </Label>
                   <Input
                     id="service_name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    value={serviceFormData.name}
+                    onChange={(e) => setServiceFormData({ ...serviceFormData, name: e.target.value })}
                     className="col-span-3"
                     required
                   />
@@ -707,8 +724,8 @@ const Store = ({ user, onLogout }) => {
                   </Label>
                   <Input
                     id="service_description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    value={serviceFormData.description}
+                    onChange={(e) => setServiceFormData({ ...serviceFormData, description: e.target.value })}
                     className="col-span-3"
                   />
                 </div>
@@ -720,8 +737,8 @@ const Store = ({ user, onLogout }) => {
                     id="service_price"
                     type="number"
                     step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                    value={serviceFormData.price}
+                    onChange={(e) => setServiceFormData({ ...serviceFormData, price: parseFloat(e.target.value) || 0 })}
                     className="col-span-3"
                     required
                   />
@@ -731,8 +748,8 @@ const Store = ({ user, onLogout }) => {
                     الحالة
                   </Label>
                   <Select
-                    value={formData.is_active ? 'active' : 'inactive'}
-                    onValueChange={(value) => setFormData({ ...formData, is_active: value === 'active' })}
+                    value={serviceFormData.is_active ? 'active' : 'inactive'}
+                    onValueChange={(value) => setServiceFormData({ ...serviceFormData, is_active: value === 'active' })}
                   >
                     <SelectTrigger className="col-span-3">
                       <SelectValue />

@@ -347,7 +347,7 @@
     "inactive": "غير نشط",
     "createUser": "إنشاء مستخدم",
     "updateUser": "تحديث المستخدم",
-    "confirmDeleteUser": "هل أنت متأكد من حذف هذا المستخدم؟",
+    "confirmDeleteUser": "هل أنت متأكد من حذف هذا الحساب",
     "userCreatedSuccessfully": "تم إنشاء المستخدم بنجاح",
     "userUpdatedSuccessfully": "تم تحديث المستخدم بنجاح",
     "userDeletedSuccessfully": "تم حذف المستخدم بنجاح",

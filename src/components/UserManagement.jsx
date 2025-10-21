@@ -26,7 +26,7 @@ const UserManagement = ({ user, onLogout }) => {
     password: '',
     first_name: '',
     last_name: '',
-    role: 'RECEPTIONIST'
+    role: 'TECHNICIAN'
   })
 
   const roles = [

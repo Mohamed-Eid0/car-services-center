@@ -51,7 +51,7 @@ function App() {
       const fullUserData = {
         ...userData,
         ...userDetails,
-        role: userDetails.role.toLowerCase()
+        role: userDetails.role
       }
       
       setUser(fullUserData)

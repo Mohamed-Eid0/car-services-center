@@ -25,11 +25,12 @@ const Layout = ({ user, onLogout, children }) => {
   const location = useLocation()
 
   const getNavigationItems = () => {
+    const role = (user?.role || '').toString().toLowerCase()
     const items = [
       { path: '/', icon: Home, label: t('layout.dashboard'), roles: ['receptionist', 'technician', 'admin', 'super_admin'] }
     ]
 
-    if (user.role === 'receptionist') {
+    if (role === 'receptionist') {
       items.push(
         { path: '/recorded-clients', icon: Users, label: t('layout.recordedClients') },
         { path: '/new-client', icon: UserPlus, label: t('layout.newClient') },
@@ -37,13 +38,13 @@ const Layout = ({ user, onLogout, children }) => {
       )
     }
 
-    if (user.role === 'technician') {
+    if (role === 'technician') {
       items.push(
         { path: '/work-orders', icon: ClipboardList, label: t('layout.workOrders') }
       )
     }
 
-    if (user.role === 'admin' || user.role === 'super_admin') {
+    if (role === 'admin' || role === 'super_admin') {
       items.push(
         { path: '/recorded-clients', icon: Users, label: t('layout.recordedClients') },
         { path: '/work-orders', icon: ClipboardList, label: t('layout.workOrders') },
@@ -53,19 +54,21 @@ const Layout = ({ user, onLogout, children }) => {
       )
     }
 
-    if (user.role === 'super_admin') {
+    if (role === 'super_admin') {
       items.push(
         { path: '/reports', icon: BarChart3, label: t('layout.reports') }
       )
     }
 
-    return items.filter(item => !item.roles || item.roles.includes(user.role))
+    // Ensure role-based filtering works regardless of role case
+    return items.filter(item => !item.roles || item.roles.map(r => r.toLowerCase()).includes(role))
   }
 
   const navigationItems = getNavigationItems()
 
   const getRoleColor = (role) => {
-    switch (role) {
+    const r = (role || '').toString().toLowerCase()
+    switch (r) {
       case 'super_admin': return 'text-purple-600'
       case 'admin': return 'text-blue-600'
       case 'receptionist': return 'text-green-600'
@@ -75,7 +78,8 @@ const Layout = ({ user, onLogout, children }) => {
   }
 
   const getRoleLabel = (role) => {
-    switch (role) {
+    const r = (role || '').toString().toLowerCase()
+    switch (r) {
       case 'super_admin': return t('layout.superAdminRole')
       case 'admin': return t('layout.adminRole')
       case 'receptionist': return t('layout.receptionistRole')
@@ -127,7 +131,7 @@ const Layout = ({ user, onLogout, children }) => {
         sidebarOpen ? 'translate-x-0' : 'translate-x-full'
       }`}>
         <div className="flex items-center justify-between h-16 px-6 border-b">
-          <h2 className="text-lg font-bold text-gray-900">{t('layout.menu')}</h2>
+          <h2 className="text-lg font-bold text-gray-900">{t('الصفحات الرئيسية')}</h2>
           <Button
             variant="ghost"
             size="sm"
