@@ -37,8 +37,8 @@ const ReceptionistDashboard = ({ user, onLogout }) => {
 
   const totalClients = clients.length
   const totalCars = cars.length
-  const pendingOrders = workOrders.filter(order => order.status === 'waiting' || order.status === 'pending').length
-  const completedToday = workOrders.filter(order => {
+  const pendingOrders = (workOrders || []).filter(order => order.status === 'waiting' || order.status === 'pending').length
+  const completedToday = (workOrders || []).filter(order => {
     const today = new Date().toISOString().split('T')[0]
     const orderDate = new Date(order.created_at).toISOString().split('T')[0]
     return order.status === 'completed' && orderDate === today

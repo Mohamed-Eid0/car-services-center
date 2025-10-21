@@ -12,23 +12,6 @@
 
 // ==================== IMPORT SECTION ====================
 // Change this import to switch between test API and real backend
-import {
-  authApi,
-  usersApi,
-  clientsApi,
-  carsApi,
-  workOrdersApi,
-  techReportsApi,
-  stockApi,
-  servicesApi,
-  billingApi,
-  reportsApi,
-  adminApi,
-  UserRole,
-  WorkOrderStatus
-} from './testApi';
-
-// When switching to Django backend, uncomment this and comment the above:
 // import {
 //   authApi,
 //   usersApi,
@@ -43,7 +26,24 @@ import {
 //   adminApi,
 //   UserRole,
 //   WorkOrderStatus
-// } from './djangoBackend';
+// } from './testApi';
+
+// When switching to Django backend, uncomment this and comment the above:
+import {
+  authApi,
+  usersApi,
+  clientsApi,
+  carsApi,
+  workOrdersApi,
+  techReportsApi,
+  stockApi,
+  servicesApi,
+  billingApi,
+  reportsApi,
+  adminApi,
+  UserRole,
+  WorkOrderStatus
+} from './djangoBackend';
 
 
 
