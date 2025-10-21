@@ -455,7 +455,7 @@ const WorkOrders = ({ user, onLogout }) => {
                     )
                   })}
                 
-                {workOrders.filter(order => order.status === 'completed').length === 0 && (
+                {(workOrders || []).filter(order => order.status === 'completed').length === 0 && (
                   <p className="text-center text-gray-500 py-4">
                     {t('workOrdersPage.noCompletedOrdersReadyForBilling')}
                   </p>

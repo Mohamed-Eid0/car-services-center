@@ -26,6 +26,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching work orders:', error)
       toast.error('Error fetching work orders')
+      setWorkOrders([]) // Ensure workOrders is always an array
     } finally {
       setLoading(false)
     }
@@ -47,7 +48,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
   }
 
   // Get work orders assigned to this technician or pending assignment
-  const assignedOrders = workOrders.filter(order => 
+  const assignedOrders = (workOrders || []).filter(order => 
     order.technician_id === user.id || 
     ['waiting', 'assigned', 'in_progress', 'pending'].includes(order.status?.toLowerCase())
   )
@@ -56,11 +57,11 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     ['waiting', 'assigned', 'pending'].includes(order.status?.toLowerCase())
   )
 
-  const inProgressOrder = workOrders.find(order => 
+  const inProgressOrder = (workOrders || []).find(order => 
     order.technician_id === user.id && order.status?.toLowerCase() === 'in_progress'
   )
 
-  const todaysOrders = workOrders.filter(order => {
+  const todaysOrders = (workOrders || []).filter(order => {
     const today = new Date().toISOString().split('T')[0]
     const orderDate = new Date(order.created_at).toISOString().split('T')[0]
     // Only show in_progress, pending (suspended), and completed orders for today

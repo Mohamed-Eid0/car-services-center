@@ -72,7 +72,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   }
   
-  const completedOrders = workOrders.filter(order => order.status?.toLowerCase() === 'completed')
+  const completedOrders = (workOrders || []).filter(order => order.status?.toLowerCase() === 'completed')
   const pendingBilling = completedOrders.filter(order => 
     !billing.some(bill => bill.work_order_id === order.id)
   )
