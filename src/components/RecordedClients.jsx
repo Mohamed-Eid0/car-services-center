@@ -101,25 +101,23 @@ const RecordedClients = ({ user, onLogout }) => {
       alert(t('recordedClientsPage.selectCarFirst'))
       return
     }
-    
-    // Find the selected car and its client
     const selectedCar = cars.find(car => car.id === selectedCarId)
     const client = clients.find(c => c.id === selectedCar.client_id)
-    
-    // Navigate to new-client page with pre-filled data
-    navigate('/new-client', {
+
+    navigate('/add-work-order', {
       state: {
-        existingClient: {
+        client: {
+          id: client.id,
           firstName: client.first_name,
           lastName: client.last_name,
-          phone: client.phone,
-          clientId: client.id
+          phone: client.phone
         },
-        existingCar: {
+        car: {
+          id: selectedCar.id,
           plate: selectedCar.plate,
           brand: selectedCar.brand,
           model: selectedCar.model,
-          carId: selectedCar.id
+          counter: selectedCar.counter ?? ''
         }
       }
     })

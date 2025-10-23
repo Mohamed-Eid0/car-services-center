@@ -81,6 +81,7 @@
     "manageInventory": "إدارة المخزون"
   },
   "receptionistDashboard": {
+    "statuswaiting": "في الانتظار",
     "title": "لوحة تحكم موظف الاستقبال",
     "welcomeBack": "مرحباً بعودتك، {{first_name}}",
     "manageDescription": "إدارة العملاء والمركبات وأوامر العمل بكفاءة.",
@@ -102,7 +103,9 @@
     "statusWaiting": "في الانتظار",
     "statusPending": "معلق",
     "statusAssigned": "مخصص",
-    "statusCompleted": "مكتمل"
+    "statusCompleted": "مكتمل",
+    "total": "الإجمالي",
+    "statusin_progress": "جاري الصيانة"
   },
   "technicianDashboard": {
     "title": "لوحة تحكم الفني",
@@ -166,7 +169,7 @@
     "title": "تسجيل عميل جديد",
     "registerNewClient": "تسجيل عميل جديد",
     "registerNewClientDescription": "إضافة عميل جديد ومعلومات مركبته إلى النظام",
-    "clientRegisteredSuccessfully": "تم تسجيل العميل {firstName} {lastName} والمركبة {plate} بنجاح!",
+    "clientRegisteredSuccessfully": "تم تسجيل العميل {{firstName}} {{lastName}} والمركبة {{plate}} بنجاح!",
     "createWorkOrder": "إنشاء أمر عمل",
     "registerAnotherClient": "تسجيل عميل آخر",
     "failedToRegisterClient": "فشل تسجيل العميل. يرجى المحاولة مرة أخرى.",
@@ -260,7 +263,7 @@
     "noWorkOrdersFound": "لم يتم العثور على أوامر عمل",
     "tech": "الفني:",
     "billing": "الفواتير",
-    "inProgress": "قيد التقدم",
+    "inProgress": "جاري الصيانة",
     "recentCompletedOrders": "أوامر العمل المكتملة الأخيرة",
     "ordersReadyForBilling": "الطلبات الجاهزة للفوترة",
     "noCompletedOrdersReadyForBilling": "لا توجد طلبات مكتملة جاهزة للفوترة",
@@ -271,7 +274,8 @@
     "confirmStartWork": "هل تريد حقاً بدء العمل على هذه السيارة؟",
     "workStartedSuccessfully": "تم بدء العمل بنجاح",
     "errorStartingWork": "خطأ في بدء العمل",
-    "search": "بحث"
+    "search": "بحث",
+    "in_progress": "جاري الصيانة"
   },
   "recordWorkPage": {
     "title": "تسجيل العمل",
@@ -360,5 +364,23 @@
     "admin": "مشرف",
     "receptionist": "موظف استقبال",
     "technician": "فني"
+  },
+  "common": {
+    "loading": "جاري التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "yes": "نعم",
+    "no": "لا",
+    "confirm": "تأكيد"
+  },
+  "addWorkOrderPage": {
+    "clientInfo": "بيانات العميل",
+    "clientEditHint": "يمكن تعديل بيانات العميل هنا قبل إنشاء أمر العمل",
+    "carInfo": "بيانات المركبة",
+    "carEditHint": "يمكن تعديل بيانات المركبة أو إعادة تخصيصها لمالك جديد",
+    "complaintHint": "أدخل الشكوى والعربون إن وجد",
+    "manualEntryHint": "يمكنك إدخال بيانات العميل والمركبة يدويًا لإنشاء أمر عمل جديد",
+    "createdSuccessfully": "تم إنشاء أمر العمل بنجاح",
+    "failed": "فشل إنشاء أمر العمل"
   }
 }

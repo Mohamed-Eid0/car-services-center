@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState, useMemo } from 'react'
+import api from '../services/api'
 import Layout from './Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,8 @@ import {
   DollarSign,
   Search,
   Filter,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react'
 import { workOrdersAPI, clientsAPI, carsAPI, usersAPI } from '../services/api'
 import { useTranslation } from 'react-i18next'
@@ -40,6 +42,7 @@ import { useData } from '../contexts/DataContext'
 const WorkOrders = ({ user, onLogout }) => {
   const { t, i18n } = useTranslation()
   const { invalidateWorkOrders } = useData()
+  const location = useLocation()
   const navigate = useNavigate()
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -48,10 +51,27 @@ const WorkOrders = ({ user, onLogout }) => {
   const [cars, setCars] = useState([])
   const [technicians, setTechnicians] = useState([])
   const [loading, setLoading] = useState(true)
+  const [newOrderOpen, setNewOrderOpen] = useState(false)
+  const [ctx, setCtx] = useState(null) // { client, car }
+  const [phone, setPhone] = useState('')
+  const [counter, setCounter] = useState('')
+  const [complaint, setComplaint] = useState('')
 
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    const s = location.state
+    if (s?.openNewOrder && s.client && s.car) {
+      setCtx({ client: s.client, car: s.car })
+      setPhone(s.client.phone || '')
+      setCounter(s.car.counter || '')
+      setNewOrderOpen(true)
+      // clear state so refresh doesn't reopen
+      navigate(location.pathname, { replace: true })
+    }
+  }, [location, navigate])
 
   const fetchData = async () => {
     try {
@@ -69,6 +89,26 @@ const WorkOrders = ({ user, onLogout }) => {
       console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCreate = async () => {
+    if (!ctx) return
+    try {
+      if (phone && phone !== ctx.client.phone) {
+        await api.updateClient(ctx.client.id, { phone })
+      }
+      await api.createWorkOrder({
+        client_id: ctx.client.id,
+        car_id: ctx.car.id,
+        complaint,
+        counter
+      })
+      setNewOrderOpen(false)
+      setCtx(null)
+      // optionally refresh your list
+    } catch (err) {
+      console.error('Failed to create work order:', err)
     }
   }
 
@@ -110,6 +150,8 @@ const WorkOrders = ({ user, onLogout }) => {
         return <AlertCircle className="h-4 w-4" />
       case 'assigned':
         return <User className="h-4 w-4" />
+      case 'in_progress':
+        return <Clock className="h-4 w-4" />
       case 'completed':
         return <CheckCircle className="h-4 w-4" />
       default:
@@ -126,6 +168,8 @@ const WorkOrders = ({ user, onLogout }) => {
         return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'assigned':
         return 'bg-purple-100 text-purple-800 border-purple-200'
+      case 'in_progress':
+        return 'bg-blue-100 text-blue-800 border-blue-200'
       case 'completed':
         return 'bg-green-100 text-green-800 border-green-200'
       default:
@@ -139,6 +183,7 @@ const WorkOrders = ({ user, onLogout }) => {
       waiting: 0,
       pending: 0,
       assigned: 0,
+      in_progress: 0,
       completed: 0
     }
     
@@ -160,7 +205,8 @@ const WorkOrders = ({ user, onLogout }) => {
     if (!confirmed) return
 
     try {
-      await workOrdersAPI.assign(orderId, user.id)
+      // This will also claim unassigned (waiting) orders for the current tech
+      await workOrdersAPI.startWork(orderId)
       toast.success(t('workOrdersPage.workStartedSuccessfully') || 'تم بدء العمل بنجاح')
       invalidateWorkOrders()
       fetchData() // Refresh data
@@ -172,6 +218,28 @@ const WorkOrders = ({ user, onLogout }) => {
 
   const handleRecordWork = (orderId) => {
     navigate(`/record-work/${orderId}`)
+  }
+
+  const canDeleteOrders = ['receptionist', 'admin', 'super_admin'].includes(user.role?.toLowerCase())
+  const isAssignedToCurrentTech = (order) => {
+    const role = user.role?.toLowerCase()
+    if (role !== 'technician') return false
+    return order.technician_id === user.id
+  }
+
+  const handleDeleteOrder = async (orderId) => {
+    if (!canDeleteOrders) return
+    const confirmed = window.confirm(t('workOrdersPage.confirmDeleteOrder') || 'هل أنت متأكد من حذف أمر العمل هذا؟')
+    if (!confirmed) return
+    try {
+      await workOrdersAPI.delete(orderId)
+      toast.success(t('workOrdersPage.orderDeleted') || 'تم حذف أمر العمل')
+      invalidateWorkOrders()
+      fetchData()
+    } catch (err) {
+      console.error('Failed to delete work order:', err)
+      toast.error(t('workOrdersPage.errorDeletingOrder') || 'فشل حذف أمر العمل')
+    }
   }
 
   if (loading) {
@@ -251,6 +319,7 @@ const WorkOrders = ({ user, onLogout }) => {
                     <SelectItem value="waiting">{t('workOrdersPage.waiting')}</SelectItem>
                     <SelectItem value="pending">{t('workOrdersPage.pending')}</SelectItem>
                     <SelectItem value="assigned">{t('workOrdersPage.assigned')}</SelectItem>
+                    <SelectItem value="in_progress">{t('workOrdersPage.in_progress') || 'قيد العمل'}</SelectItem>
                     <SelectItem value="completed">{t('workOrdersPage.completed')}</SelectItem>
                   </SelectContent>
                 </Select>
@@ -390,7 +459,7 @@ const WorkOrders = ({ user, onLogout }) => {
                                     {t('workOrdersPage.startWork') || 'بدء العمل'}
                                   </Button>
                                 )}
-                                {order.status === 'assigned' && order.technician_id === user.id && (
+                                {isAssignedToCurrentTech(order) && (order.status === 'assigned' || order.status === 'in_progress') && (
                                   <Button
                                     size="sm"
                                     onClick={() => handleRecordWork(order.id)}
@@ -400,7 +469,18 @@ const WorkOrders = ({ user, onLogout }) => {
                                   </Button>
                                 )}
                               </div>
-                            ) : null}
+                            ) : (
+                              canDeleteOrders && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )
+                            )}
                           </TableCell>
                         </TableRow>
                       )
@@ -465,6 +545,50 @@ const WorkOrders = ({ user, onLogout }) => {
           </Card>
         )}
       </div>
+
+      {newOrderOpen && ctx && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{t('recordedClientsPage.addWorkOrder')}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="block text-sm text-gray-600">{t('recordedClientsPage.clientName')}</label>
+              <div className="mt-1 font-medium">
+                {ctx.client.firstName} {ctx.client.lastName}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600">{t('recordedClientsPage.phone')}</label>
+              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600">{t('recordedClientsPage.plateNumber')}</label>
+              <div className="mt-1 font-medium">{ctx.car.plate}</div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600">{t('recordedClientsPage.mileage')}</label>
+              <Input type="number" value={counter} onChange={(e) => setCounter(e.target.value)} />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm text-gray-600">{t('workOrdersPage.complaint')}</label>
+              <textarea
+                className="w-full border rounded-md p-2"
+                rows={3}
+                value={complaint}
+                onChange={(e) => setComplaint(e.target.value)}
+                placeholder={t('workOrdersPage.searchPlaceholder')}
+              />
+            </div>
+            <div className="md:col-span-2 flex gap-2">
+              <Button onClick={handleCreate}>{t('recordedClientsPage.addWorkOrder')}</Button>
+              <Button variant="outline" onClick={() => setNewOrderOpen(false)}>
+                {t('newClientPage.cancel')}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </Layout>
   )
 }

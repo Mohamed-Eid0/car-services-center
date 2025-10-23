@@ -17,6 +17,7 @@ import BillingDetail from './components/BillingDetail'
 import Store from './components/Store'
 import UserManagement from './components/UserManagement'
 import Reports from './components/Reports'
+import AddWorkOrder from './components/AddWorkOrder'
 import './App.css'
 import { useTranslation } from 'react-i18next'
 
@@ -178,7 +179,7 @@ function App() {
               />
             </>
           )}
-          
+          <Route path="/add-work-order" element={<AddWorkOrder user={user} onLogout={handleLogout} />} />
           {/* Redirect unknown routes to dashboard */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

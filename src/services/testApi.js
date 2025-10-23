@@ -348,12 +348,37 @@ export const usersApi = {
   delete: async (id) => {
     await delay();
     const users = getStorage(STORAGE_KEYS.USERS) || [];
-    const filtered = users.filter(u => u.id !== parseInt(id));
-    
-    if (filtered.length === users.length) {
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER) || {};
+    const targetId = parseInt(id);
+    const target = users.find(u => u.id === targetId);
+
+    if (!target) {
       throw new Error("User not found");
     }
 
+    // Block self-deletion at API level
+    if (currentUser.id === targetId) {
+      throw new Error("You cannot delete your own account");
+    }
+
+    const meRole = (currentUser.role || '').toString().toUpperCase();
+    const targetRole = (target.role || '').toString().toUpperCase();
+
+    const isSuperAdmin = meRole === UserRole.SUPER_ADMIN;
+    const isAdmin = meRole === UserRole.ADMIN;
+
+    const normalRoles = [UserRole.RECEPTIONIST, UserRole.TECHNICIAN];
+
+    const canDelete = (
+      (isSuperAdmin) ||
+      (isAdmin && normalRoles.includes(targetRole))
+    );
+
+    if (!canDelete) {
+      throw new Error('Forbidden: insufficient permissions to delete this user');
+    }
+
+    const filtered = users.filter(u => u.id !== targetId);
     setStorage(STORAGE_KEYS.USERS, filtered);
     return { message: "User deleted successfully" };
   }
@@ -591,6 +616,12 @@ export const workOrdersApi = {
   delete: async (id) => {
     await delay();
     const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER) || {}
+    const role = (currentUser.role || '').toString().toUpperCase()
+    const allowed = ['RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN']
+    if (!allowed.includes(role)) {
+      throw new Error('Forbidden: insufficient permissions to delete work orders')
+    }
     const filtered = workOrders.filter(w => w.id !== parseInt(id));
     
     if (filtered.length === workOrders.length) {
@@ -622,12 +653,38 @@ export const workOrdersApi = {
   startWork: async (id) => {
     await delay();
     const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER);
     const index = workOrders.findIndex(w => w.id === parseInt(id));
     
     if (index === -1) throw new Error("Work order not found");
 
     const currentOrder = workOrders[index];
-    const technicianId = currentOrder.technician_id;
+    // Authorization rules:
+    // - If order is unassigned and waiting: claim it for current user and start
+    // - If order is assigned: only the assigned technician can start/resume
+    // - Otherwise forbid
+    if (!currentUser) {
+      throw new Error('Not authenticated')
+    }
+
+    let technicianId = currentOrder.technician_id;
+    const status = currentOrder.status;
+
+    if (!technicianId) {
+      // Unassigned, allow claiming only if waiting
+      if (status !== WorkOrderStatus.WAITING) {
+        throw new Error('Cannot start this work order in its current state')
+      }
+      technicianId = currentUser.id;
+      workOrders[index] = {
+        ...currentOrder,
+        technician_id: technicianId,
+        updated_at: new Date().toISOString()
+      };
+    } else if (technicianId !== currentUser.id) {
+      // Assigned to someone else — block
+      throw new Error('Forbidden: only the assigned technician can start this order')
+    }
 
     // Set any other "in_progress" orders for this technician to "pending"
     workOrders.forEach((order, idx) => {
@@ -647,6 +704,7 @@ export const workOrdersApi = {
     // Set the current order to "in_progress"
     workOrders[index] = {
       ...currentOrder,
+      technician_id: technicianId,
       status: WorkOrderStatus.IN_PROGRESS,
       updated_at: new Date().toISOString()
     };
@@ -681,6 +739,18 @@ export const techReportsApi = {
     await delay();
     const techReports = getStorage(STORAGE_KEYS.TECH_REPORTS) || [];
     const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER);
+    const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+
+    // Authorization: only the assigned technician can create a report for this work order
+    const woId = parseInt(reportData.work_order_id)
+    const workOrder = workOrders.find(wo => wo.id === woId)
+    if (!workOrder) {
+      throw new Error("Work order not found")
+    }
+    const allowedStatuses = [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS]
+    if (workOrder.technician_id !== currentUser.id || !allowedStatuses.includes(workOrder.status)) {
+      throw new Error("You are not allowed to record work for this work order")
+    }
 
     const newReport = {
       id: generateId(techReports),
