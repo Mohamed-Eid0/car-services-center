@@ -305,16 +305,16 @@ const RecordWork = ({ user, onLogout, isEdit = false }) => {
                     className="pl-10"
                   />
                 </div>
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead>القطعة</TableHead>
-                      <TableHead>النوع</TableHead>
-                      <TableHead>المنشأ</TableHead>
-                      <TableHead>السعر</TableHead>
-                      <TableHead>المتوفر</TableHead>
-                      <TableHead>الكمية</TableHead>
+                      <TableHead className="w-12 text-center"></TableHead>
+                      <TableHead className="w-1/4 text-right">القطعة</TableHead>
+                      <TableHead className="w-24 text-right">النوع</TableHead>
+                      <TableHead className="w-24 text-right">المنشأ</TableHead>
+                      <TableHead className="w-20 text-right">السعر</TableHead>
+                      <TableHead className="w-20 text-center">المتوفر</TableHead>
+                      <TableHead className="w-28 text-center">الكمية</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -324,19 +324,19 @@ const RecordWork = ({ user, onLogout, isEdit = false }) => {
                       
                       return (
                         <TableRow key={part.id}>
-                          <TableCell>
+                          <TableCell className="text-center">
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={() => handlePartSelection(part.id)}
                               disabled={!part.quantity}
                             />
                           </TableCell>
-                          <TableCell>{part.item}</TableCell>
-                          <TableCell>{part.is_oil ? 'زيت' : 'قطعة غيار'}</TableCell>
-                          <TableCell>{part.origin}</TableCell>
-                          <TableCell>${part.sell_price}</TableCell>
-                          <TableCell>{part.quantity}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-right">{part.item}</TableCell>
+                          <TableCell className="text-right">{part.is_oil ? 'زيت' : 'قطعة غيار'}</TableCell>
+                          <TableCell className="text-right">{part.origin}</TableCell>
+                          <TableCell className="text-right">${part.sell_price}</TableCell>
+                          <TableCell className="text-center">{part.quantity}</TableCell>
+                          <TableCell className="text-center">
                             {isSelected && (
                               <Input
                                 type="number"
@@ -344,7 +344,7 @@ const RecordWork = ({ user, onLogout, isEdit = false }) => {
                                 max={part.quantity}
                                 value={selectedPart.quantity}
                                 onChange={(e) => handlePartQuantityChange(part.id, e.target.value)}
-                                className="w-20"
+                                className="w-20 mx-auto"
                               />
                             )}
                           </TableCell>

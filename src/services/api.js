@@ -12,6 +12,25 @@
 
 // ==================== IMPORT SECTION ====================
 // Change this import to switch between test API and real backend
+import {
+  authApi,
+  usersApi,
+  clientsApi,
+  carsApi,
+  workOrdersApi,
+  techReportsApi,
+  stockApi,
+  servicesApi,
+  billingApi,
+  expensesApi,
+  debtsApi,
+  reportsApi,
+  adminApi,
+  UserRole,
+  WorkOrderStatus
+} from './testApi';
+
+// When switching to Django backend, uncomment this and comment the above:
 // import {
 //   authApi,
 //   usersApi,
@@ -26,24 +45,7 @@
 //   adminApi,
 //   UserRole,
 //   WorkOrderStatus
-// } from './testApi';
-
-// When switching to Django backend, uncomment this and comment the above:
-import {
-  authApi,
-  usersApi,
-  clientsApi,
-  carsApi,
-  workOrdersApi,
-  techReportsApi,
-  stockApi,
-  servicesApi,
-  billingApi,
-  reportsApi,
-  adminApi,
-  UserRole,
-  WorkOrderStatus
-} from './djangoBackend';
+// } from './djangoBackend';
 
 
 
@@ -61,6 +63,8 @@ export const techReportsAPI = techReportsApi;
 export const stockAPI = stockApi;
 export const servicesAPI = servicesApi;
 export const billingAPI = billingApi;
+export const expensesAPI = expensesApi;
+export const debtsAPI = debtsApi;
 export const reportsAPI = reportsApi;
 export const adminAPI = adminApi;
 
@@ -122,13 +126,30 @@ const api = {
   updateStockQuantity: stockApi.updateQuantity,
 
   // Billing
+  // Historically some components call `getBilling()` expecting the full list.
+  // Provide both names for backward compatibility: `getBilling` returns all billings,
+  // and `getBillingById` returns a single billing by id.
   getBillings: billingApi.getAll,
-  getBilling: billingApi.getById,
+  getBilling: billingApi.getAll,
+  getBillingById: billingApi.getById,
   getBillingByWorkOrder: billingApi.getByWorkOrderId,
   createBilling: billingApi.create,
   updateBilling: billingApi.update,
   deleteBilling: billingApi.delete,
   generateBilling: billingApi.generateBilling,
+
+  // Expenses
+  getExpenses: expensesApi.getAll,
+  createExpense: expensesApi.create,
+  updateExpense: expensesApi.update,
+  deleteExpense: expensesApi.delete,
+
+  // Debts
+  getDebts: debtsApi.getAll,
+  getDebt: debtsApi.getById,
+  createDebt: debtsApi.create,
+  updateDebt: debtsApi.update,
+  addDebtPayment: debtsApi.addPayment,
 
   // Reports
   getKPIs: reportsApi.getKPIs,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useData } from '../contexts/DataContext'
 import Layout from './Layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -9,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { FileText, TrendingUp, DollarSign, Calendar, Download, Filter } from 'lucide-react'
 import { toast } from 'sonner'
-import { reportsAPI } from '../services/api'
+import api, { reportsAPI } from '../services/api'
 
 const Reports = ({ user, onLogout }) => {
   const { t:_t, i18n } = useTranslation()
@@ -20,34 +21,74 @@ const Reports = ({ user, onLogout }) => {
   const [popularOils, setPopularOils] = useState([])
   const [washTypes, setWashTypes] = useState([])
   const [dateRange, setDateRange] = useState('last_30_days')
+  const { lastUpdate } = useData()
+  const stockLastUpdate = lastUpdate?.stock
 
   useEffect(() => {
     fetchReports()
-  }, [dateRange])
+  }, [dateRange, stockLastUpdate])
 
   const fetchReports = async () => {
     try {
       setLoading(true)
-      
-      // Fetch KPIs
-      const kpiData = await reportsAPI.getKPIs()
-      setKpis(kpiData)
-      
-      // Fetch daily work orders
-      const dailyData = await reportsAPI.getDailyWorkOrders()
-      setDailyWorkOrders(dailyData)
-      
-      // Fetch monthly profits
-      const profitData = await reportsAPI.getMonthlyProfits()
-      setMonthlyProfits(profitData)
-      
-      // Fetch popular oils
-      const oilData = await reportsAPI.getPopularOils()
-      setPopularOils(oilData)
-      
-      // Fetch wash types
-      const washData = await reportsAPI.getWashTypes()
-      setWashTypes(washData)
+      // Fetch primary datasets from local test API (localStorage-backed)
+      const [workOrdersData, clientsData, billingData, dailyData, profitData, oilData] = await Promise.all([
+        api.getWorkOrders(),
+        api.getClients(),
+        api.getBilling(),
+        reportsAPI.getDailyWorkOrders(),
+        // reportsAPI method name is singular in the test API
+        reportsAPI.getMonthlyProfit(),
+        reportsAPI.getPopularOils(),
+      ])
+
+      // Compute KPIs locally (total revenue, total work orders, avg order value, active clients)
+      const totalRevenue = Array.isArray(billingData) ? billingData.reduce((s, b) => s + (b.total || 0), 0) : 0
+      const totalWorkOrders = Array.isArray(workOrdersData) ? workOrdersData.length : 0
+      const averageOrderValue = billingData && billingData.length ? totalRevenue / billingData.length : 0
+      const activeClients = Array.isArray(clientsData) ? clientsData.length : 0
+
+      setKpis({
+        total_revenue: totalRevenue,
+        total_work_orders: totalWorkOrders,
+        average_order_value: Number(averageOrderValue.toFixed(2)),
+        active_clients: activeClients,
+      })
+
+      // Set charts data
+      setDailyWorkOrders(Array.isArray(dailyData) ? dailyData : [])
+      setMonthlyProfits(Array.isArray(profitData) ? profitData : [])
+
+      // Popular oils may return { oil, count } — normalize to { name, count }
+      const normalizedOils = Array.isArray(oilData)
+        ? oilData.map((o) => ({ name: o.oil || o.name || 'Unknown', count: o.count || 0 }))
+        : []
+      setPopularOils(normalizedOils)
+
+      // Compute wash types from work orders (fallback when reportsAPI doesn't provide wash types)
+      const washCounts = {}
+      if (Array.isArray(workOrdersData)) {
+        workOrdersData.forEach((wo) => {
+          const type = wo.wash_type || (wo.tech_report && wo.tech_report.wash_type) || null
+          if (type) {
+            const key = String(type)
+            washCounts[key] = (washCounts[key] || 0) + 1
+          } else if (Array.isArray(wo.services)) {
+            // try detect wash service names
+            wo.services.forEach((s) => {
+              if (/wash|غسيل|غسل/i.test(String(s))) {
+                const key = String(s)
+                washCounts[key] = (washCounts[key] || 0) + 1
+              }
+            })
+          }
+        })
+      }
+
+      const washArray = Object.entries(washCounts).map(([type, count]) => ({ type, count }))
+      setWashTypes(washArray)
+
+      // inventory data is handled in Store; Reports no longer fetches stock here
       
     } catch (error) {
       console.error('Error fetching reports:', error)
@@ -110,7 +151,7 @@ const Reports = ({ user, onLogout }) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">إجمالي الإيرادات</p>
                   <p className="text-2xl font-bold">${kpis.total_revenue || 0}</p>
-                  <p className="text-xs text-green-600">+12% من الشهر الماضي</p>
+                  {/* <p className="text-xs text-green-600">+12% من الشهر الماضي</p> */}
                 </div>
               </div>
             </CardContent>
@@ -122,7 +163,7 @@ const Reports = ({ user, onLogout }) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">أوامر العمل</p>
                   <p className="text-2xl font-bold">{kpis.total_work_orders || 0}</p>
-                  <p className="text-xs text-blue-600">+8% من الشهر الماضي</p>
+                  {/* <p className="text-xs text-blue-600">+8% من الشهر الماضي</p> */}
                 </div>
               </div>
             </CardContent>
@@ -134,7 +175,7 @@ const Reports = ({ user, onLogout }) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">متوسط قيمة الطلب</p>
                   <p className="text-2xl font-bold">${kpis.average_order_value || 0}</p>
-                  <p className="text-xs text-purple-600">+5% من الشهر الماضي</p>
+                  {/* <p className="text-xs text-purple-600">+5% من الشهر الماضي</p> */}
                 </div>
               </div>
             </CardContent>
@@ -146,7 +187,7 @@ const Reports = ({ user, onLogout }) => {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">العملاء النشطون</p>
                   <p className="text-2xl font-bold">{kpis.active_clients || 0}</p>
-                  <p className="text-xs text-orange-600">+15% من الشهر الماضي</p>
+                  {/* <p className="text-xs text-orange-600">+15% من الشهر الماضي</p> */}
                 </div>
               </div>
             </CardContent>
@@ -154,11 +195,11 @@ const Reports = ({ user, onLogout }) => {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">نظرة عامة</TabsTrigger>
             <TabsTrigger value="financial">التقارير المالية</TabsTrigger>
             <TabsTrigger value="operational">التقارير التشغيلية</TabsTrigger>
-            <TabsTrigger value="inventory">تقارير المخزون</TabsTrigger>
+            {/* <TabsTrigger value="inventory">تقارير المخزون</TabsTrigger> */}
           </TabsList>
           
           <TabsContent value="overview">
@@ -314,62 +355,7 @@ const Reports = ({ user, onLogout }) => {
             </div>
           </TabsContent>
           
-          <TabsContent value="inventory">
-            <Card>
-              <CardHeader>
-                <CardTitle>تقرير المخزون</CardTitle>
-                <CardDescription>حالة المخزون والعناصر المنخفضة</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>العنصر</TableHead>
-                      <TableHead>الكمية الحالية</TableHead>
-                      <TableHead>الحد الأدنى</TableHead>
-                      <TableHead>الحالة</TableHead>
-                      <TableHead>آخر تحديث</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>زيت محرك 5W-30</TableCell>
-                      <TableCell>15</TableCell>
-                      <TableCell>20</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
-                          منخفض
-                        </span>
-                      </TableCell>
-                      <TableCell>2024-01-15</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>فلتر هواء</TableCell>
-                      <TableCell>45</TableCell>
-                      <TableCell>10</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                          متوفر
-                        </span>
-                      </TableCell>
-                      <TableCell>2024-01-14</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>شمعات الإشعال</TableCell>
-                      <TableCell>8</TableCell>
-                      <TableCell>15</TableCell>
-                      <TableCell>
-                        <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs">
-                          منخفض
-                        </span>
-                      </TableCell>
-                      <TableCell>2024-01-13</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          
         </Tabs>
       </div>
     </Layout>

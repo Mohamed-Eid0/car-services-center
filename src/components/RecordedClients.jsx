@@ -101,25 +101,23 @@ const RecordedClients = ({ user, onLogout }) => {
       alert(t('recordedClientsPage.selectCarFirst'))
       return
     }
-    
-    // Find the selected car and its client
     const selectedCar = cars.find(car => car.id === selectedCarId)
     const client = clients.find(c => c.id === selectedCar.client_id)
-    
-    // Navigate to new-client page with pre-filled data
-    navigate('/new-client', {
+
+    navigate('/add-work-order', {
       state: {
-        existingClient: {
+        client: {
+          id: client.id,
           firstName: client.first_name,
           lastName: client.last_name,
-          phone: client.phone,
-          clientId: client.id
+          phone: client.phone
         },
-        existingCar: {
+        car: {
+          id: selectedCar.id,
           plate: selectedCar.plate,
           brand: selectedCar.brand,
           model: selectedCar.model,
-          carId: selectedCar.id
+          counter: selectedCar.counter ?? ''
         }
       }
     })
@@ -237,11 +235,11 @@ const RecordedClients = ({ user, onLogout }) => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">{t('recordedClientsPage.select')}</TableHead>
-                    <TableHead>{t('recordedClientsPage.clientName')}</TableHead>
-                    <TableHead>{t('recordedClientsPage.phone')}</TableHead>
-                    <TableHead>{t('recordedClientsPage.plateNumber')}</TableHead>
-                    <TableHead>{t('recordedClientsPage.vehicle')}</TableHead>
-                    <TableHead>{t('recordedClientsPage.mileage')}</TableHead>
+                    <TableHead className="w-1/4">{t('recordedClientsPage.clientName')}</TableHead>
+                    <TableHead className="w-40">{t('recordedClientsPage.phone')}</TableHead>
+                    <TableHead className="w-28">{t('recordedClientsPage.plateNumber')}</TableHead>
+                    <TableHead className="w-1/4">{t('recordedClientsPage.vehicle')}</TableHead>
+                    <TableHead className="w-32">{t('recordedClientsPage.mileage')}</TableHead>
                     <TableHead>{t('recordedClientsPage.notes')}</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -261,51 +259,51 @@ const RecordedClients = ({ user, onLogout }) => {
                         }`}
                         onClick={() => item.carId && setSelectedCarId(item.carId)}
                       >
-                        <TableCell>
+                        <TableCell className="text-center">
                           {item.carId && (
                             <input
                               type="radio"
                               name="selectedCar"
                               checked={selectedCarId === item.carId}
                               onChange={() => setSelectedCarId(item.carId)}
-                              className="h-4 w-4 text-blue-600"
+                              className="h-4 w-4 text-blue-600 mx-auto"
                             />
                           )}
                         </TableCell>
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium rtl:text-right">
                           {item.firstName} {item.lastName}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                            {item.phone}
+                        <TableCell className="rtl:text-right">
+                          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                            <Phone className="h-4 w-4 text-gray-400" />
+                            <span>{item.phone}</span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="rtl:text-right">
                           {item.plate !== '-' ? (
                             <Badge variant="outline">{item.plate}</Badge>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="rtl:text-right">
                           {item.brand !== '-' ? (
-                            <div className="flex items-center">
-                              <Car className="h-4 w-4 mr-2 text-gray-400" />
-                              {item.brand} {item.model}
+                            <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                              <Car className="h-4 w-4 text-gray-400" />
+                              <span>{item.brand} {item.model}</span>
                             </div>
                           ) : (
                             <span className="text-gray-400">{t('recordedClientsPage.noVehicle')}</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="rtl:text-right">
                           {item.counter !== '-' ? (
                             <span>{item.counter.toLocaleString()} {t('recordedClientsPage.km')}</span>
                           ) : (
                             <span className="text-gray-400">-</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="rtl:text-right">
                           <span className="text-sm text-gray-600">{item.notes}</span>
                         </TableCell>
                       </TableRow>

@@ -1,217 +1,185 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import Layout from './Layout'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { Car, User, Wrench, Clock, Package, DollarSign, Droplets, CheckCircle } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import api from '../services/api'
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import Layout from "./Layout";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  Car,
+  User,
+  Wrench,
+  Clock,
+  Package,
+  DollarSign,
+  Droplets,
+  CheckCircle,
+} from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import api from "../services/api";
 
 const washTypes = [
-  { id: 1, name: 'غسيل داخلي', price: 30 },
-  { id: 2, name: 'غسيل خارجي', price: 25 },
-  { id: 3, name: 'غسيل شامل', price: 50 },
-  { id: 4, name: 'غسيل كيميائي', price: 75 }
-]
+  { id: 1, name: "غسيل داخلي", price: 30 },
+  { id: 2, name: "غسيل خارجي", price: 25 },
+  { id: 3, name: "غسيل شامل", price: 50 },
+  { id: 4, name: "غسيل كيميائي", price: 75 },
+];
 
 const BillingDetail = ({ user, onLogout }) => {
-  const { i18n } = useTranslation()
-  const { workOrderId } = useParams()
-  const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
-  const [workOrder, setWorkOrder] = useState(null)
-  const [techReport, setTechReport] = useState(null)
-  const [client, setClient] = useState(null)
-  const [car, setCar] = useState(null)
-  const [stock, setStock] = useState([])
-  const [services, setServices] = useState([])
-  const [laborCost, setLaborCost] = useState(0)
-  const [oilChangeCost, setOilChangeCost] = useState(0)
+  const { i18n } = useTranslation();
+  const { workOrderId } = useParams();
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [workOrder, setWorkOrder] = useState(null);
+  const [techReport, setTechReport] = useState(null);
+  const [client, setClient] = useState(null);
+  const [car, setCar] = useState(null);
+  const [stock, setStock] = useState([]);
+  const [services, setServices] = useState([]);
+  const [laborCost, setLaborCost] = useState("");
+  
 
   const fetchData = async () => {
     try {
       // Fetch work order
-      const woData = await api.getWorkOrder(parseInt(workOrderId))
-      setWorkOrder(woData)
+      const woData = await api.getWorkOrder(parseInt(workOrderId));
+      setWorkOrder(woData);
 
       // Fetch tech report
-      const techReportData = await api.getTechReportByWorkOrder(parseInt(workOrderId))
-      setTechReport(techReportData)
+      const techReportData = await api.getTechReportByWorkOrder(
+        parseInt(workOrderId)
+      );
+      setTechReport(techReportData);
 
       // Calculate labor cost from time spent
-      setLaborCost(techReportData.time_spent ? techReportData.time_spent * 50 : 0)
+      setLaborCost(
+        techReportData.time_spent ? techReportData.time_spent * 50 : 0
+      );
 
       // Fetch client and car
       const [clientData, carData] = await Promise.all([
         api.getClient(woData.client_id),
-        api.getCar(woData.car_id)
-      ])
-      setClient(clientData)
-      setCar(carData)
+        api.getCar(woData.car_id),
+      ]);
+      setClient(clientData);
+      setCar(carData);
 
       // Fetch all stock and services for reference
       const [stockData, servicesData] = await Promise.all([
         api.getStock(),
-        api.getServices()
-      ])
-      setStock(stockData)
-      setServices(servicesData)
-
+        api.getServices(),
+      ]);
+      setStock(stockData);
+      setServices(servicesData);
     } catch (error) {
-      console.error('Error fetching data:', error)
-      toast.error('خطأ في تحميل البيانات')
+      console.error("Error fetching data:", error);
+      toast.error("خطأ في تحميل البيانات");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workOrderId])
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workOrderId]);
 
-  const handleGenerateBilling = async () => {
-    try {
-      // Update labor cost and oil change cost in a custom billing
-      const usedParts = techReport.used_parts || []
-      const usedServices = techReport.services || []
-      
-      // Calculate parts cost
-      let partsTotal = 0
-      usedParts.forEach(usedPart => {
-        const partId = usedPart.partId || usedPart
-        const quantity = usedPart.quantity || 1
-        const part = stock.find(s => s.id === partId)
-        if (part) {
-          partsTotal += part.sell_price * quantity
-        }
-      })
-
-      // Calculate services cost
-      let servicesTotal = 0
-      usedServices.forEach(serviceId => {
-        const service = services.find(s => s.id === serviceId)
-        if (service) {
-          servicesTotal += service.price
-        }
-      })
-
-      // Wash cost
-      const washType = washTypes.find(w => w.id === parseInt(techReport.wash_type))
-      const washCost = washType ? washType.price : 0
-
-      // Calculate totals
-      const subtotal = partsTotal + servicesTotal + washCost + laborCost + oilChangeCost
-      const tax = subtotal * 0.14
-      const total = subtotal + tax - (workOrder.deposit || 0)
-
-      // Create billing
-      const billingData = {
-        work_order_id: workOrder.id,
-        parts_cost: partsTotal,
-        services_cost: servicesTotal,
-        wash_cost: washCost,
-        labor_cost: laborCost,
-        oil_change_cost: oilChangeCost,
-        subtotal: subtotal,
-        tax: tax,
-        deposit: workOrder.deposit || 0,
-        total: total,
-        paid: false
-      }
-
-      await api.createBilling(billingData)
-
-      // Update work order status if needed
-      if (workOrder.status !== 'completed') {
-        await api.updateWorkOrder(workOrder.id, {
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-      }
-
-      // Note: Stock quantities are already deducted when technician created the work record
-      // No need to deduct again here
-
-      toast.success('تم إنشاء الفاتورة بنجاح')
-      navigate('/billing')
-    } catch (error) {
-      console.error('Error generating billing:', error)
-      toast.error('خطأ في إنشاء الفاتورة: ' + error.message)
-    }
-  }
+  // Note: Creating bill functionality removed per requirements.
 
   if (loading) {
     return (
-      <Layout user={user} onLogout={onLogout} title="إنشاء فاتورة">
+      <Layout user={user} onLogout={onLogout} title="تفاصيل الفاتورة">
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
       </Layout>
-    )
+    );
   }
 
   if (!workOrder || !techReport) {
     return (
-      <Layout user={user} onLogout={onLogout} title="إنشاء فاتورة">
+      <Layout user={user} onLogout={onLogout} title="تفاصيل الفاتورة">
         <Card>
           <CardContent className="p-6">
-            <p className="text-center text-gray-500">لم يتم العثور على بيانات أمر العمل</p>
-            <Button onClick={() => navigate('/billing')} className="mt-4">
+            <p className="text-center text-gray-500">
+              لم يتم العثور على بيانات أمر العمل
+            </p>
+            <Button onClick={() => navigate("/billing")} className="mt-4">
               العودة إلى الفواتير
             </Button>
           </CardContent>
         </Card>
       </Layout>
-    )
+    );
   }
 
   // Get used parts with details
-  const usedPartsData = (techReport.used_parts || []).map(usedPart => {
-    const partId = usedPart.partId || usedPart
-    const quantity = usedPart.quantity || 1
-    const part = stock.find(s => s.id === partId)
-    return part ? { ...part, usedQuantity: quantity } : null
-  }).filter(p => p !== null)
+  const usedPartsData = (techReport.used_parts || [])
+    .map((usedPart) => {
+      const partId = usedPart.partId || usedPart;
+      const quantity = usedPart.quantity || 1;
+      const part = stock.find((s) => s.id === partId);
+      return part ? { ...part, usedQuantity: quantity } : null;
+    })
+    .filter((p) => p !== null);
 
-  const partsTotal = usedPartsData.reduce((sum, part) => sum + (part.sell_price * part.usedQuantity), 0)
+  const partsTotal = usedPartsData.reduce(
+    (sum, part) => sum + part.sell_price * part.usedQuantity,
+    0
+  );
 
   // Get used services with details
-  const usedServicesData = (techReport.services || []).map(serviceId => 
-    services.find(s => s.id === serviceId)
-  ).filter(s => s !== null)
+  const usedServicesData = (techReport.services || [])
+    .map((serviceId) => services.find((s) => s.id === serviceId))
+    .filter((s) => s !== null);
 
-  const servicesTotal = usedServicesData.reduce((sum, service) => sum + service.price, 0)
+  const servicesTotal = usedServicesData.reduce(
+    (sum, service) => sum + service.price,
+    0
+  );
 
   // Wash details
-  const selectedWashType = washTypes.find(w => w.id === parseInt(techReport.wash_type))
-  const washCost = selectedWashType ? selectedWashType.price : 0
+  const selectedWashType = washTypes.find(
+    (w) => w.id === parseInt(techReport.wash_type)
+  );
+  const washCost = selectedWashType ? selectedWashType.price : 0;
 
   // Calculate totals
-  const subtotal = partsTotal + servicesTotal + washCost + laborCost + oilChangeCost
-  const tax = subtotal * 0.14
-  const total = subtotal + tax - (workOrder.deposit || 0)
+  const subtotal = partsTotal + servicesTotal + washCost + laborCost;
+  const tax = subtotal * 0.14;
+  const total = subtotal + tax - (workOrder.deposit || 0);
 
   return (
-    <Layout user={user} onLogout={onLogout} title="إنشاء فاتورة">
-      <div className="space-y-6" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
+    <Layout user={user} onLogout={onLogout} title="تفاصيل الفاتورة">
+      <div className="space-y-6" dir={i18n.language === "ar" ? "rtl" : "ltr"}>
         {/* Work Order Header */}
         <Card>
           <CardHeader>
             <div className="flex justify-between items-start">
               <div>
-                <CardTitle className="text-2xl">فاتورة أمر العمل #{workOrder.id.toString().padStart(4, '0')}</CardTitle>
+                <CardTitle className="text-2xl">
+                  فاتورة أمر العمل #{workOrder.id.toString().padStart(4, "0")}
+                </CardTitle>
                 <CardDescription>تفاصيل العمل والتكاليف</CardDescription>
               </div>
-              <Badge className="bg-green-100 text-green-800">
-                مكتمل
-              </Badge>
+              <Badge className="bg-green-100 text-green-800">مكتمل</Badge>
             </div>
           </CardHeader>
           <CardContent>
@@ -225,7 +193,9 @@ const BillingDetail = ({ user, onLogout }) => {
                 <div className="space-y-2 text-sm">
                   <div>
                     <Label>الاسم</Label>
-                    <p>{client?.first_name} {client?.last_name}</p>
+                    <p>
+                      {client?.first_name} {client?.last_name}
+                    </p>
                   </div>
                   <div>
                     <Label>رقم الهاتف</Label>
@@ -243,7 +213,9 @@ const BillingDetail = ({ user, onLogout }) => {
                 <div className="space-y-2 text-sm">
                   <div>
                     <Label>السيارة</Label>
-                    <p>{car?.brand} {car?.model}</p>
+                    <p>
+                      {car?.brand} {car?.model}
+                    </p>
                   </div>
                   <div>
                     <Label>رقم اللوحة</Label>
@@ -310,7 +282,9 @@ const BillingDetail = ({ user, onLogout }) => {
                         <TableCell>{part.item}</TableCell>
                         <TableCell>{part.usedQuantity}</TableCell>
                         <TableCell>${part.sell_price}</TableCell>
-                        <TableCell className="font-semibold">${part.sell_price * part.usedQuantity}</TableCell>
+                        <TableCell className="font-semibold">
+                          ${part.sell_price * part.usedQuantity}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -327,7 +301,10 @@ const BillingDetail = ({ user, onLogout }) => {
                 </div>
                 <div className="space-y-2">
                   {usedServicesData.map((service) => (
-                    <div key={service.id} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                    <div
+                      key={service.id}
+                      className="flex justify-between items-center p-3 bg-gray-50 rounded"
+                    >
                       <span>{service.name}</span>
                       <span className="font-semibold">${service.price}</span>
                     </div>
@@ -345,7 +322,9 @@ const BillingDetail = ({ user, onLogout }) => {
                 </div>
                 <div className="flex justify-between items-center p-3 bg-gray-50 rounded">
                   <span>{selectedWashType.name}</span>
-                  <span className="font-semibold">${selectedWashType.price}</span>
+                  <span className="font-semibold">
+                    ${selectedWashType.price}
+                  </span>
                 </div>
               </div>
             )}
@@ -364,7 +343,7 @@ const BillingDetail = ({ user, onLogout }) => {
         <Card>
           <CardHeader>
             <CardTitle>تفاصيل الفاتورة</CardTitle>
-            <CardDescription>قم بتعديل تكلفة العمالة وتغيير الزيت</CardDescription>
+            <CardDescription>قم بتعديل تكلفة العمالة</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -373,32 +352,19 @@ const BillingDetail = ({ user, onLogout }) => {
                 <Input
                   id="laborCost"
                   type="number"
-                  min="0"
-                  step="0.01"
+                  step="10"
                   value={laborCost}
-                  onChange={(e) => setLaborCost(parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
+                  onChange={(e) =>
+                    setLaborCost(parseFloat(e.target.value) || 0)
+                  }
                 />
                 <p className="text-sm text-gray-500">
-                  الوقت المستغرق: {techReport.time_spent} ساعة × $50/ساعة = ${techReport.time_spent * 50}
+                  الوقت المستغرق: {techReport.time_spent} ساعة × $50/ساعة = $
+                  {techReport.time_spent * 50}
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="oilChangeCost">تكلفة تغيير الزيت</Label>
-                <Input
-                  id="oilChangeCost"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={oilChangeCost}
-                  onChange={(e) => setOilChangeCost(parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                />
-                <p className="text-sm text-gray-500">
-                  أضف التكلفة إذا تم تغيير الزيت
-                </p>
-              </div>
+              {/* oil change input removed per request */}
             </div>
 
             <Separator />
@@ -423,10 +389,7 @@ const BillingDetail = ({ user, onLogout }) => {
                   <span>العمالة:</span>
                   <span>${laborCost.toFixed(2)}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>تغيير الزيت:</span>
-                  <span>${oilChangeCost.toFixed(2)}</span>
-                </div>
+                {/* oil change row removed */}
                 <Separator />
                 <div className="flex justify-between font-semibold">
                   <span>المجموع الفرعي:</span>
@@ -449,27 +412,31 @@ const BillingDetail = ({ user, onLogout }) => {
             </div>
 
             <div className="flex gap-3 pt-4">
-              <Button 
-                onClick={handleGenerateBilling}
+              <Button
+                onClick={async () => {
+                  try {
+                    setLoading(true)
+                    await api.generateBilling(parseInt(workOrderId))
+                    toast.success('تم إنشاء الفاتورة')
+                    navigate('/billing')
+                  } catch (err) {
+                    console.error(err)
+                    toast.error('فشل إنشاء الفاتورة')
+                  } finally {
+                    setLoading(false)
+                  }
+                }}
+                size="lg"
                 className="flex-1"
-                size="lg"
               >
-                <CheckCircle className="h-5 w-5 mr-2" />
-                إنشاء الفاتورة
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => navigate('/billing')}
-                size="lg"
-              >
-                إلغاء
+                انشاء الفاتورة
               </Button>
             </div>
           </CardContent>
         </Card>
       </div>
     </Layout>
-  )
-}
+  );
+};
 
-export default BillingDetail
+export default BillingDetail;

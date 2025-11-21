@@ -37,6 +37,8 @@ const STORAGE_KEYS = {
   STOCK_ITEMS: 'car_service_stock_items',
   SERVICES: 'car_service_services',
   BILLING: 'car_service_billing',
+  EXPENSES: 'car_service_expenses',
+  DEBTS: 'car_service_debts',
   CURRENT_USER: 'car_service_current_user',
   TOKENS: 'car_service_tokens'
 };
@@ -195,6 +197,16 @@ const initializeData = () => {
   if (!getStorage(STORAGE_KEYS.BILLING)) {
     setStorage(STORAGE_KEYS.BILLING, []);
   }
+
+  // Initialize expenses
+  if (!getStorage(STORAGE_KEYS.EXPENSES)) {
+    setStorage(STORAGE_KEYS.EXPENSES, []);
+  }
+
+  // Initialize debts
+  if (!getStorage(STORAGE_KEYS.DEBTS)) {
+    setStorage(STORAGE_KEYS.DEBTS, []);
+  }
 };
 
 // Initialize data on module load
@@ -348,12 +360,37 @@ export const usersApi = {
   delete: async (id) => {
     await delay();
     const users = getStorage(STORAGE_KEYS.USERS) || [];
-    const filtered = users.filter(u => u.id !== parseInt(id));
-    
-    if (filtered.length === users.length) {
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER) || {};
+    const targetId = parseInt(id);
+    const target = users.find(u => u.id === targetId);
+
+    if (!target) {
       throw new Error("User not found");
     }
 
+    // Block self-deletion at API level
+    if (currentUser.id === targetId) {
+      throw new Error("You cannot delete your own account");
+    }
+
+    const meRole = (currentUser.role || '').toString().toUpperCase();
+    const targetRole = (target.role || '').toString().toUpperCase();
+
+    const isSuperAdmin = meRole === UserRole.SUPER_ADMIN;
+    const isAdmin = meRole === UserRole.ADMIN;
+
+    const normalRoles = [UserRole.RECEPTIONIST, UserRole.TECHNICIAN];
+
+    const canDelete = (
+      (isSuperAdmin) ||
+      (isAdmin && normalRoles.includes(targetRole))
+    );
+
+    if (!canDelete) {
+      throw new Error('Forbidden: insufficient permissions to delete this user');
+    }
+
+    const filtered = users.filter(u => u.id !== targetId);
     setStorage(STORAGE_KEYS.USERS, filtered);
     return { message: "User deleted successfully" };
   }
@@ -591,6 +628,12 @@ export const workOrdersApi = {
   delete: async (id) => {
     await delay();
     const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER) || {}
+    const role = (currentUser.role || '').toString().toUpperCase()
+    const allowed = ['RECEPTIONIST', 'ADMIN', 'SUPER_ADMIN']
+    if (!allowed.includes(role)) {
+      throw new Error('Forbidden: insufficient permissions to delete work orders')
+    }
     const filtered = workOrders.filter(w => w.id !== parseInt(id));
     
     if (filtered.length === workOrders.length) {
@@ -622,12 +665,38 @@ export const workOrdersApi = {
   startWork: async (id) => {
     await delay();
     const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+    const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER);
     const index = workOrders.findIndex(w => w.id === parseInt(id));
     
     if (index === -1) throw new Error("Work order not found");
 
     const currentOrder = workOrders[index];
-    const technicianId = currentOrder.technician_id;
+    // Authorization rules:
+    // - If order is unassigned and waiting: claim it for current user and start
+    // - If order is assigned: only the assigned technician can start/resume
+    // - Otherwise forbid
+    if (!currentUser) {
+      throw new Error('Not authenticated')
+    }
+
+    let technicianId = currentOrder.technician_id;
+    const status = currentOrder.status;
+
+    if (!technicianId) {
+      // Unassigned, allow claiming only if waiting
+      if (status !== WorkOrderStatus.WAITING) {
+        throw new Error('Cannot start this work order in its current state')
+      }
+      technicianId = currentUser.id;
+      workOrders[index] = {
+        ...currentOrder,
+        technician_id: technicianId,
+        updated_at: new Date().toISOString()
+      };
+    } else if (technicianId !== currentUser.id) {
+      // Assigned to someone else — block
+      throw new Error('Forbidden: only the assigned technician can start this order')
+    }
 
     // Set any other "in_progress" orders for this technician to "pending"
     workOrders.forEach((order, idx) => {
@@ -647,6 +716,7 @@ export const workOrdersApi = {
     // Set the current order to "in_progress"
     workOrders[index] = {
       ...currentOrder,
+      technician_id: technicianId,
       status: WorkOrderStatus.IN_PROGRESS,
       updated_at: new Date().toISOString()
     };
@@ -681,6 +751,18 @@ export const techReportsApi = {
     await delay();
     const techReports = getStorage(STORAGE_KEYS.TECH_REPORTS) || [];
     const currentUser = getStorage(STORAGE_KEYS.CURRENT_USER);
+    const workOrders = getStorage(STORAGE_KEYS.WORK_ORDERS) || [];
+
+    // Authorization: only the assigned technician can create a report for this work order
+    const woId = parseInt(reportData.work_order_id)
+    const workOrder = workOrders.find(wo => wo.id === woId)
+    if (!workOrder) {
+      throw new Error("Work order not found")
+    }
+    const allowedStatuses = [WorkOrderStatus.ASSIGNED, WorkOrderStatus.IN_PROGRESS]
+    if (workOrder.technician_id !== currentUser.id || !allowedStatuses.includes(workOrder.status)) {
+      throw new Error("You are not allowed to record work for this work order")
+    }
 
     const newReport = {
       id: generateId(techReports),
@@ -1157,6 +1239,97 @@ export const reportsApi = {
   }
 };
 
+// ==================== EXPENSES API ====================
+export const expensesApi = {
+  getAll: async () => {
+    await delay();
+    return getStorage(STORAGE_KEYS.EXPENSES) || [];
+  },
+
+  create: async (expenseData) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.EXPENSES) || [];
+    const newItem = {
+      id: generateId(items),
+      ...expenseData,
+      created_at: new Date().toISOString()
+    };
+    items.push(newItem);
+    setStorage(STORAGE_KEYS.EXPENSES, items);
+    return newItem;
+  },
+
+  update: async (id, expenseData) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.EXPENSES) || [];
+    const index = items.findIndex(i => i.id === parseInt(id));
+    if (index === -1) throw new Error('Expense not found');
+    items[index] = { ...items[index], ...expenseData, updated_at: new Date().toISOString() };
+    setStorage(STORAGE_KEYS.EXPENSES, items);
+    return items[index];
+  },
+
+  delete: async (id) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.EXPENSES) || [];
+    const filtered = items.filter(i => i.id !== parseInt(id));
+    setStorage(STORAGE_KEYS.EXPENSES, filtered);
+    return { message: 'Expense deleted successfully' };
+  }
+};
+
+// ==================== DEBTS API ====================
+export const debtsApi = {
+  getAll: async () => {
+    await delay();
+    return getStorage(STORAGE_KEYS.DEBTS) || [];
+  },
+
+  getById: async (id) => {
+    await delay();
+    const debts = getStorage(STORAGE_KEYS.DEBTS) || [];
+    const d = debts.find(x => x.id === parseInt(id));
+    if (!d) throw new Error('Debt not found');
+    return d;
+  },
+
+  create: async (debtData) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.DEBTS) || [];
+    const newDebt = {
+      id: generateId(items),
+      ...debtData,
+      payments: debtData.payments || [],
+      created_at: new Date().toISOString()
+    };
+    items.push(newDebt);
+    setStorage(STORAGE_KEYS.DEBTS, items);
+    return newDebt;
+  },
+
+  update: async (id, debtData) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.DEBTS) || [];
+    const index = items.findIndex(d => d.id === parseInt(id));
+    if (index === -1) throw new Error('Debt not found');
+    items[index] = { ...items[index], ...debtData, updated_at: new Date().toISOString() };
+    setStorage(STORAGE_KEYS.DEBTS, items);
+    return items[index];
+  },
+
+  addPayment: async (id, payment) => {
+    await delay();
+    const items = getStorage(STORAGE_KEYS.DEBTS) || [];
+    const index = items.findIndex(d => d.id === parseInt(id));
+    if (index === -1) throw new Error('Debt not found');
+    const p = { amount: Number(payment.amount || 0), date: payment.date || new Date().toISOString() };
+    items[index].payments = [...(items[index].payments || []), p];
+    items[index].updated_at = new Date().toISOString();
+    setStorage(STORAGE_KEYS.DEBTS, items);
+    return items[index];
+  }
+};
+
 // ==================== ADMIN API ====================
 export const adminApi = {
   clearAllData: async () => {
@@ -1205,5 +1378,8 @@ export default {
   services: servicesApi,
   billing: billingApi,
   reports: reportsApi,
+  // Expenses & Debts
+  expenses: expensesApi,
+  debts: debtsApi,
   admin: adminApi
 };

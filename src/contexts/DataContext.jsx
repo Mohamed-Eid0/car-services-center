@@ -11,7 +11,7 @@ export const useData = () => {
 }
 
 export const DataProvider = ({ children }) => {
-  const [dataVersion, setDataVersion] = useState(0)
+  const [dataVersion, setDataVersion] = useState("")
   const [lastUpdate, setLastUpdate] = useState({
     clients: 0,
     cars: 0,

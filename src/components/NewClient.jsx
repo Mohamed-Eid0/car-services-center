@@ -14,13 +14,15 @@ import { useTranslation } from 'react-i18next'
 import { useData } from '../contexts/DataContext'
 
 const NewClient = ({ user, onLogout }) => {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { invalidateClients, invalidateCars, invalidateWorkOrders } = useData()
   const navigate = useNavigate()
   const location = useLocation()
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
   const [success, setSuccess] = useState('')
+  const [createdClient, setCreatedClient] = useState(null)
+  const [createdCar, setCreatedCar] = useState(null)
   
   // Get existing client data from navigation state
   const existingClient = location.state?.existingClient
@@ -35,6 +37,7 @@ const NewClient = ({ user, onLogout }) => {
   
   const [carData, setCarData] = useState({
     plate: existingCar?.plate || '',
+    plate_en: existingCar?.plate_en || '',
     brand: existingCar?.brand || '',
     model: existingCar?.model || '',
     counter: '',
@@ -59,13 +62,26 @@ const NewClient = ({ user, onLogout }) => {
     return null
   }
 
+  // Transliterate Arabic plate to a Latin approximation (for an English representation)
+  const transliterateArabicToLatin = (text) => {
+    const map = {
+      'أ':'a','ا':'a','إ':'i','آ':'a','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','و':'w','ي':'y','ى':'a','ء':'','ؤ':'w','ئ':'y','ة':'h','گ':'g','چ':'ch','پ':'p','ڤ':'v',
+      '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'
+    }
+    return (text || '').split('').map(ch => map[ch] ?? ch).join('')
+  }
+
   const validatePlate = (plate) => {
-    // Must be alphanumeric
-    if (!/^[A-Za-z0-9]+$/.test(plate)) {
+    // Allow Arabic and English letters, digits (Arabic/English), spaces and hyphen
+    const allowed = /^[A-Za-z\u0621-\u064A0-9\u0660-\u0669\s-]+$/
+    if (!allowed.test(plate)) {
       return t('newClientPage.plateNumberAlphanumeric')
     }
-    // Note: Plate can be duplicated (car can be sold to new owner)
-    // Exact duplicate validation (same client + same plate) is done at car creation
+    // Enforce < 10 non-separator chars
+    const coreLength = plate.replace(/[\s-]/g, '').length
+    if (coreLength >= 10) {
+      return t('newClientPage.plateMaxLength') || 'يجب أن يكون رقم اللوحة أقل من 10 أحرف بدون فواصل'
+    }
     return null
   }
 
@@ -151,6 +167,10 @@ const NewClient = ({ user, onLogout }) => {
           oil_confirmed: false,
           wash_confirmed: false
         }
+        // Update client phone if changed
+        if (clientData.phone && clientData.phone !== existingClient.phone) {
+          await api.updateClient(existingClient.clientId, { phone: clientData.phone })
+        }
         
         // Update the car counter
         await api.updateCar(existingCar.carId, {
@@ -181,14 +201,20 @@ const NewClient = ({ user, onLogout }) => {
           phone: clientData.phone
         })
 
+        const plateEn = transliterateArabicToLatin(carData.plate).toUpperCase()
         const newCar = await api.createCar({
           client_id: newClient.id,
-          plate: carData.plate.trim().toUpperCase(),
+          plate: carData.plate.trim(),
+          plate_en: plateEn,
           brand: carData.brand.trim(),
           model: carData.model.trim(),
           counter: parseInt(carData.counter),
           notes: carData.notes.trim() || 'New registration'
         })
+
+        // store created client/car for "إنشاء أمر عمل" button
+        setCreatedClient(newClient)
+        setCreatedCar(newCar)
 
         invalidateClients()
         invalidateCars()
@@ -201,7 +227,7 @@ const NewClient = ({ user, onLogout }) => {
         
         // Reset form
         setClientData({ firstName: '', lastName: '', phone: '' })
-        setCarData({ plate: '', brand: '', model: '', counter: '', notes: '' })
+  setCarData({ plate: '', plate_en: '', brand: '', model: '', counter: '', notes: '' })
       }
       
     } catch (error) {
@@ -227,333 +253,343 @@ const NewClient = ({ user, onLogout }) => {
     }
   }
 
-  const handleCreateWorkOrder = () => {
-    // In a real app, this would navigate to work order creation
-    alert('Redirecting to work order creation...')
-    navigate('/work-orders')
+  // call this after a successful register (you already show the green success section)
+  const handleGoToCreateWorkOrder = () => {
+    if (!createdClient || !createdCar) return
+    navigate('/add-work-order', {
+      state: {
+        client: {
+          id: createdClient.id,
+          firstName: createdClient.first_name,
+          lastName: createdClient.last_name,
+          phone: createdClient.phone
+        },
+        car: {
+          id: createdCar.id,
+          plate: createdCar.plate,
+          brand: createdCar.brand,
+          model: createdCar.model,
+          counter: createdCar.counter ?? ''
+        }
+      }
+    })
   }
 
+
   return (
-    <Layout user={user} onLogout={onLogout} title={t('newClientPage.title')}>
-      <div className="max-w-4xl mx-auto space-y-6" dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}>
-        {/* Header */}
+    <Layout user={user} onLogout={onLogout}>
+      {/* REMOVE the header/description section */}
+
+      {/* Success Message */}
+      {success && (
+        <Alert className="border-green-200 bg-green-50">
+          <AlertDescription className="text-green-800">
+            {success}
+            <div className="mt-2">
+              <Button 
+                onClick={handleGoToCreateWorkOrder}
+                size="sm"
+                className="mr-2"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                {t('recordedClientsPage.addWorkOrder')}
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setSuccess('')}
+              >
+
+                {t('newClientPage.registerAnotherClient')}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+
+      )}
+
+      {/* Registration Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Client Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <UserPlus className="h-6 w-6 text-blue-600" />
-              <span>{t('newClientPage.registerNewClient')}</span>
+              <UserPlus className="h-5 w-5" />
+              <span>{t('newClientPage.clientInformation')}</span>
+              {isExistingClient && (
+                <span className="text-sm font-normal text-blue-600">
+                  ({t('newClientPage.existingClient') || 'عميل موجود'})
+                </span>
+              )}
             </CardTitle>
-            <CardDescription>
-              {t('newClientPage.registerNewClientDescription')}
-            </CardDescription>
           </CardHeader>
-        </Card>
-
-        {/* Success Message */}
-        {success && (
-          <Alert className="border-green-200 bg-green-50">
-            <AlertDescription className="text-green-800">
-              {success}
-              <div className="mt-2">
-                <Button 
-                  onClick={handleCreateWorkOrder}
-                  size="sm"
-                  className="mr-2"
-                >
-                  <Plus className="h-4 w-4 mr-1" />
-                  {t('newClientPage.createWorkOrder')}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setSuccess('')}
-                >
-                  {t('newClientPage.registerAnotherClient')}
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Registration Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Client Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <UserPlus className="h-5 w-5" />
-                <span>{t('newClientPage.clientInformation')}</span>
-                {isExistingClient && (
-                  <span className="text-sm font-normal text-blue-600">
-                    ({t('newClientPage.existingClient') || 'عميل موجود'})
-                  </span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">{t('newClientPage.firstName')}</Label>
-                  <Input
-                    id="firstName"
-                    type="text"
-                    value={clientData.firstName}
-                    onChange={(e) => setClientData(prev => ({ ...prev, firstName: e.target.value }))}
-                    placeholder={t('newClientPage.enterFirstName')}
-                    className={errors.firstName ? 'border-red-500' : ''}
-                    disabled={isExistingClient}
-                    readOnly={isExistingClient}
-                  />
-                  {errors.firstName && (
-                    <p className="text-sm text-red-600">{errors.firstName}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">{t('newClientPage.lastName')}</Label>
-                  <Input
-                    id="lastName"
-                    type="text"
-                    value={clientData.lastName}
-                    onChange={(e) => setClientData(prev => ({ ...prev, lastName: e.target.value }))}
-                    placeholder={t('newClientPage.enterLastName')}
-                    className={errors.lastName ? 'border-red-500' : ''}
-                    disabled={isExistingClient}
-                    readOnly={isExistingClient}
-                  />
-                  {errors.lastName && (
-                    <p className="text-sm text-red-600">{errors.lastName}</p>
-                  )}
-                </div>
-              </div>
-              
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">{t('newClientPage.phoneNumber')}</Label>
+                <Label htmlFor="firstName">{t('newClientPage.firstName')}</Label>
                 <Input
-                  id="phone"
-                  type="tel"
-                  value={clientData.phone}
-                  onChange={(e) => setClientData(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder={t('newClientPage.enterPhoneNumber')}
-                  maxLength={11}
-                  className={errors.phone ? 'border-red-500' : ''}
+                  id="firstName"
+                  type="text"
+                  value={clientData.firstName}
+                  onChange={(e) => setClientData(prev => ({ ...prev, firstName: e.target.value }))}
+                  placeholder={t('newClientPage.enterFirstName')}
+                  className={errors.firstName ? 'border-red-500' : ''}
                   disabled={isExistingClient}
                   readOnly={isExistingClient}
                 />
-                {errors.phone && (
-                  <p className="text-sm text-red-600">{errors.phone}</p>
+                {errors.firstName && (
+                  <p className="text-sm text-red-600">{errors.firstName}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="lastName">{t('newClientPage.lastName')}</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={clientData.lastName}
+                  onChange={(e) => setClientData(prev => ({ ...prev, lastName: e.target.value }))}
+                  placeholder={t('newClientPage.enterLastName')}
+                  className={errors.lastName ? 'border-red-500' : ''}
+                  disabled={isExistingClient}
+                  readOnly={isExistingClient}
+                />
+                {errors.lastName && (
+                  <p className="text-sm text-red-600">{errors.lastName}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="phone">{t('newClientPage.phoneNumber')}</Label>
+              <Input
+                id="phone"
+                type="tel"
+                value={clientData.phone}
+                onChange={(e) => setClientData(prev => ({ ...prev, phone: e.target.value }))}
+                placeholder={t('newClientPage.enterPhoneNumber')}
+                maxLength={11}
+                className={errors.phone ? 'border-red-500' : ''}
+                
+              />
+              {errors.phone && (
+                <p className="text-sm text-red-600">{errors.phone}</p>
+              )}
+              {!isExistingClient && (
+                <p className="text-sm text-gray-500">
+                  {t('newClientPage.phoneNumberHint')}
+                </p>
+              )}
+            </div>
+          </CardContent>
+
+        </Card>
+
+        <Separator />
+
+        {/* Vehicle Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Car className="h-5 w-5" />
+              <span>{t('newClientPage.vehicleInformation')}</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="plate">{t('newClientPage.plateNumber')}</Label>
+                <Input
+                  id="plate"
+                  type="text"
+                  value={carData.plate}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    const en = transliterateArabicToLatin(value)
+                    setCarData(prev => ({ ...prev, plate: value, plate_en: en }))
+                  }}
+                  placeholder={t('newClientPage.enterPlateNumber')}
+                  className={errors.plate ? 'border-red-500' : ''}
+                  disabled={isExistingClient}
+                  readOnly={isExistingClient}
+                />
+                {errors.plate && (
+                  <p className="text-sm text-red-600">{errors.plate}</p>
                 )}
                 {!isExistingClient && (
                   <p className="text-sm text-gray-500">
-                    {t('newClientPage.phoneNumberHint')}
+                    {t('newClientPage.plateNumberHint')}
                   </p>
                 )}
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className="space-y-2">
+                <Label htmlFor="counter">
+                  {t('newClientPage.mileageCounter')}
+                  {isExistingClient && <span className="text-red-500"> *</span>}
+                </Label>
+                <Input
+                  id="counter"
+                  type="number"
+                  min="0"
+                  value={carData.counter}
+                  onChange={(e) => setCarData(prev => ({ ...prev, counter: e.target.value }))}
+                  placeholder={t('newClientPage.enterMileageCounter')}
+                  className={errors.counter ? 'border-red-500' : ''}
+                />
+                {errors.counter && (
+                  <p className="text-sm text-red-600">{errors.counter}</p>
+                )}
+                {isExistingClient && (
+                  <p className="text-sm text-blue-600">
+                    {t('newClientPage.enterCurrentMileage') || 'أدخل العداد الحالي للسيارة'}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="brand">{t('newClientPage.brand')}</Label>
+                <Input
+                  id="brand"
+                  type="text"
+                  value={carData.brand}
+                  onChange={(e) => setCarData(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder={t('newClientPage.enterBrand')}
+                  className={errors.brand ? 'border-red-500' : ''}
+                  disabled={isExistingClient}
+                  readOnly={isExistingClient}
+                />
+                {errors.brand && (
+                  <p className="text-sm text-red-600">{errors.brand}</p>
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="model">{t('newClientPage.model')}</Label>
+                <Input
+                  id="model"
+                  type="text"
+                  value={carData.model}
+                  onChange={(e) => setCarData(prev => ({ ...prev, model: e.target.value }))}
+                  placeholder={t('newClientPage.enterModel')}
+                  className={errors.model ? 'border-red-500' : ''}
+                  disabled={isExistingClient}
+                  readOnly={isExistingClient}
+                />
+                {errors.model && (
+                  <p className="text-sm text-red-600">{errors.model}</p>
+                )}
+              </div>
+            </div>
+            
+            {!isExistingClient && (
+              <div className="space-y-2">
+                <Label htmlFor="notes">{t('newClientPage.notes')}</Label>
+                <Textarea
+                  id="notes"
+                  value={carData.notes}
+                  onChange={(e) => setCarData(prev => ({ ...prev, notes: e.target.value }))}
+                  placeholder={t('newClientPage.additionalNotes')}
+                  rows={3}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          <Separator />
-
-          {/* Vehicle Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Car className="h-5 w-5" />
-                <span>{t('newClientPage.vehicleInformation')}</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Work Order Information (only for existing clients) */}
+        {isExistingClient && (
+          <>
+            <Separator />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2">
+                  <ClipboardList className="h-5 w-5" />
+                  <span>{t('newClientPage.workOrderInformation') || 'معلومات أمر العمل'}</span>
+                </CardTitle>
+                <CardDescription>
+                  {t('newClientPage.enterComplaintAndDeposit') || 'أدخل شكوى العميل والعربون'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="plate">{t('newClientPage.plateNumber')}</Label>
-                  <Input
-                    id="plate"
-                    type="text"
-                    value={carData.plate}
-                    onChange={(e) => setCarData(prev => ({ ...prev, plate: e.target.value }))}
-                    placeholder={t('newClientPage.enterPlateNumber')}
-                    className={errors.plate ? 'border-red-500' : ''}
-                    disabled={isExistingClient}
-                    readOnly={isExistingClient}
+                  <Label htmlFor="complaint">
+                    {t('newClientPage.complaint') || 'الشكوى'} <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="complaint"
+                    value={workOrderData.complaint}
+                    onChange={(e) => setWorkOrderData(prev => ({ ...prev, complaint: e.target.value }))}
+                    placeholder={t('newClientPage.enterComplaint') || 'أدخل شكوى العميل...'}
+                    rows={3}
+                    className={errors.complaint ? 'border-red-500' : ''}
                   />
-                  {errors.plate && (
-                    <p className="text-sm text-red-600">{errors.plate}</p>
-                  )}
-                  {!isExistingClient && (
-                    <p className="text-sm text-gray-500">
-                      {t('newClientPage.plateNumberHint')}
-                    </p>
+                  {errors.complaint && (
+                    <p className="text-sm text-red-600">{errors.complaint}</p>
                   )}
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="counter">
-                    {t('newClientPage.mileageCounter')}
-                    {isExistingClient && <span className="text-red-500"> *</span>}
-                  </Label>
+                  <Label htmlFor="deposit">{t('newClientPage.deposit') || 'العربون'}</Label>
                   <Input
-                    id="counter"
+                    id="deposit"
                     type="number"
                     min="0"
-                    value={carData.counter}
-                    onChange={(e) => setCarData(prev => ({ ...prev, counter: e.target.value }))}
-                    placeholder={t('newClientPage.enterMileageCounter')}
-                    className={errors.counter ? 'border-red-500' : ''}
-                  />
-                  {errors.counter && (
-                    <p className="text-sm text-red-600">{errors.counter}</p>
-                  )}
-                  {isExistingClient && (
-                    <p className="text-sm text-blue-600">
-                      {t('newClientPage.enterCurrentMileage') || 'أدخل العداد الحالي للسيارة'}
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="brand">{t('newClientPage.brand')}</Label>
-                  <Input
-                    id="brand"
-                    type="text"
-                    value={carData.brand}
-                    onChange={(e) => setCarData(prev => ({ ...prev, brand: e.target.value }))}
-                    placeholder={t('newClientPage.enterBrand')}
-                    className={errors.brand ? 'border-red-500' : ''}
-                    disabled={isExistingClient}
-                    readOnly={isExistingClient}
-                  />
-                  {errors.brand && (
-                    <p className="text-sm text-red-600">{errors.brand}</p>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="model">{t('newClientPage.model')}</Label>
-                  <Input
-                    id="model"
-                    type="text"
-                    value={carData.model}
-                    onChange={(e) => setCarData(prev => ({ ...prev, model: e.target.value }))}
-                    placeholder={t('newClientPage.enterModel')}
-                    className={errors.model ? 'border-red-500' : ''}
-                    disabled={isExistingClient}
-                    readOnly={isExistingClient}
-                  />
-                  {errors.model && (
-                    <p className="text-sm text-red-600">{errors.model}</p>
-                  )}
-                </div>
-              </div>
-              
-              {!isExistingClient && (
-                <div className="space-y-2">
-                  <Label htmlFor="notes">{t('newClientPage.notes')}</Label>
-                  <Textarea
-                    id="notes"
-                    value={carData.notes}
-                    onChange={(e) => setCarData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder={t('newClientPage.additionalNotes')}
-                    rows={3}
+                    value={workOrderData.deposit}
+                    onChange={(e) => setWorkOrderData(prev => ({ ...prev, deposit: parseFloat(e.target.value) || 0 }))}
+                    placeholder={t('newClientPage.enterDeposit') || 'أدخل مبلغ العربون'}
                   />
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </>
+        )}
 
-          {/* Work Order Information (only for existing clients) */}
-          {isExistingClient && (
-            <>
-              <Separator />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <ClipboardList className="h-5 w-5" />
-                    <span>{t('newClientPage.workOrderInformation') || 'معلومات أمر العمل'}</span>
-                  </CardTitle>
-                  <CardDescription>
-                    {t('newClientPage.enterComplaintAndDeposit') || 'أدخل شكوى العميل والعربون'}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="complaint">
-                      {t('newClientPage.complaint') || 'الشكوى'} <span className="text-red-500">*</span>
-                    </Label>
-                    <Textarea
-                      id="complaint"
-                      value={workOrderData.complaint}
-                      onChange={(e) => setWorkOrderData(prev => ({ ...prev, complaint: e.target.value }))}
-                      placeholder={t('newClientPage.enterComplaint') || 'أدخل شكوى العميل...'}
-                      rows={3}
-                      className={errors.complaint ? 'border-red-500' : ''}
-                    />
-                    {errors.complaint && (
-                      <p className="text-sm text-red-600">{errors.complaint}</p>
-                    )}
+        {/* Submit Button */}
+        <Card>
+          <CardContent className="pt-6">
+            {errors.submit && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertDescription>{errors.submit}</AlertDescription>
+              </Alert>
+            )}
+            
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/recorded-clients')}
+              >
+                {t('newClientPage.cancel')}
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="min-w-[120px]"
+              >
+                {loading ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>{t('newClientPage.saving')}</span>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="deposit">{t('newClientPage.deposit') || 'العربون'}</Label>
-                    <Input
-                      id="deposit"
-                      type="number"
-                      min="0"
-                      value={workOrderData.deposit}
-                      onChange={(e) => setWorkOrderData(prev => ({ ...prev, deposit: parseFloat(e.target.value) || 0 }))}
-                      placeholder={t('newClientPage.enterDeposit') || 'أدخل مبلغ العربون'}
-                    />
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <Save className="h-4 w-4" />
+                    <span>
+                      {isExistingClient 
+                        ? (t('newClientPage.createWorkOrder') || 'إنشاء أمر عمل')
+                        : t('newClientPage.registerClient')
+                      }
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {/* Submit Button */}
-          <Card>
-            <CardContent className="pt-6">
-              {errors.submit && (
-                <Alert variant="destructive" className="mb-4">
-                  <AlertDescription>{errors.submit}</AlertDescription>
-                </Alert>
-              )}
-              
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate('/recorded-clients')}
-                >
-                  {t('newClientPage.cancel')}
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="min-w-[120px]"
-                >
-                  {loading ? (
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      <span>{t('newClientPage.saving')}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <Save className="h-4 w-4" />
-                      <span>
-                        {isExistingClient 
-                          ? (t('newClientPage.createWorkOrder') || 'إنشاء أمر عمل')
-                          : t('newClientPage.registerClient')
-                        }
-                      </span>
-                    </div>
-                  )}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </form>
-      </div>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </form>
     </Layout>
   )
 }

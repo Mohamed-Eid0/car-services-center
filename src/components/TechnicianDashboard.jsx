@@ -26,7 +26,6 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error('Error fetching work orders:', error)
       toast.error('Error fetching work orders')
-      setWorkOrders([]) // Ensure workOrders is always an array
     } finally {
       setLoading(false)
     }
@@ -47,21 +46,31 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     navigate(`/record-work/${orderId}`)
   }
 
-  // Get work orders assigned to this technician or pending assignment
-  const assignedOrders = (workOrders || []).filter(order => 
-    order.technician_id === user.id || 
-    ['waiting', 'assigned', 'in_progress', 'pending'].includes(order.status?.toLowerCase())
-  )
+  // Only show orders that are either:
+  // - Unassigned and waiting (any tech can pick them up)
+  // - Assigned to THIS technician (any status)
+  const myOrUnassigned = workOrders.filter(order => {
+    const status = order.status?.toLowerCase()
+    const isWaiting = status === 'waiting' && !order.technician_id
+    const isMine = order.technician_id === user.id
+    return isWaiting || isMine
+  })
 
-  const pendingOrders = assignedOrders.filter(order => 
-    ['waiting', 'assigned', 'pending'].includes(order.status?.toLowerCase())
-  )
+  // Pending list: things I can take action on (waiting for anyone OR assigned to me but not in_progress/completed)
+  const pendingOrders = myOrUnassigned.filter(order => {
+    const status = order.status?.toLowerCase()
+    if (status === 'waiting') return true // any tech can claim
+    if (order.technician_id === user.id) {
+      return status === 'assigned' || status === 'pending'
+    }
+    return false
+  })
 
-  const inProgressOrder = (workOrders || []).find(order => 
+  const inProgressOrder = workOrders.find(order => 
     order.technician_id === user.id && order.status?.toLowerCase() === 'in_progress'
   )
 
-  const todaysOrders = (workOrders || []).filter(order => {
+  const todaysOrders = workOrders.filter(order => {
     const today = new Date().toISOString().split('T')[0]
     const orderDate = new Date(order.created_at).toISOString().split('T')[0]
     // Only show in_progress, pending (suspended), and completed orders for today
@@ -108,6 +117,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     }
   }
 
+  const myAssignedCount = workOrders.filter(o => o.technician_id === user.id).length
   const stats = [
     {
       title: t('technicianDashboard.pendingWork'),
@@ -123,7 +133,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
     },
     {
       title: t('technicianDashboard.totalAssigned'),
-      value: assignedOrders.length,
+      value: myAssignedCount,
       icon: Wrench,
       color: 'text-blue-600'
     }
@@ -196,7 +206,7 @@ const TechnicianDashboard = ({ user, onLogout }) => {
                 </div>
                 <div className="flex items-center space-x-3">
                   <Badge className="bg-blue-600 text-white hover:bg-blue-600">
-                    قيد العمل
+                   جاري الصيانة
                   </Badge>
                   <Button 
                     size="sm" 
@@ -256,9 +266,22 @@ const TechnicianDashboard = ({ user, onLogout }) => {
                         <Badge className={getStatusColor(order.status)}>
                           {getStatusLabel(order.status)}
                         </Badge>
-                        <Button size="sm" onClick={() => handleStartWork(order.id)}>
-                          {t('technicianDashboard.startWork')}
-                        </Button>
+                        {/* Start/Resume only if allowed */}
+                        {(order.status?.toLowerCase() === 'waiting' || (order.technician_id === user.id && (order.status?.toLowerCase() === 'assigned' || order.status?.toLowerCase() === 'pending')) ) && (
+                          <Button size="sm" onClick={() => handleStartWork(order.id)}>
+                            {order.status?.toLowerCase() === 'pending' ? 'استئناف العمل' : t('technicianDashboard.startWork')}
+                          </Button>
+                        )}
+                        {/* Allow recording when assigned to me even if not yet started */}
+                        {order.technician_id === user.id && (order.status?.toLowerCase() === 'assigned' || order.status?.toLowerCase() === 'in_progress') && (
+                          <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            onClick={() => navigate(`/record-work/${order.id}`)}
+                          >
+                            تسجيل تقرير العمل
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )

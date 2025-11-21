@@ -197,8 +197,20 @@ const UserManagement = ({ user, onLogout }) => {
   }
 
   const canManageUser = (targetUser) => {
+    // View/Edit permissions
+    if (targetUser.id === user.id) return true // can edit own profile (except deletion handled below)
     if (user.role === 'SUPER_ADMIN') return true
     if (user.role === 'ADMIN' && targetUser.role !== 'SUPER_ADMIN' && targetUser.role !== 'ADMIN') return true
+    return false
+  }
+
+  const canDeleteUser = (targetUser) => {
+    // Delete permissions
+    if (targetUser.id === user.id) return false // never show delete for self
+    if (user.role === 'SUPER_ADMIN') return true
+    if (user.role === 'ADMIN') {
+      return targetUser.role === 'RECEPTIONIST' || targetUser.role === 'TECHNICIAN'
+    }
     return false
   }
 
@@ -403,15 +415,17 @@ const UserManagement = ({ user, onLogout }) => {
                                   <Edit className="h-4 w-4 ml-1" />
                                   تعديل
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteUser(userItem.id)}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                >
-                                  <Trash2 className="h-4 w-4 ml-1" />
-                                  حذف
-                                </Button>
+                                {canDeleteUser(userItem) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleDeleteUser(userItem.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <Trash2 className="h-4 w-4 ml-1" />
+                                    حذف
+                                  </Button>
+                                )}
                               </>
                             ) : (
                               <span className="text-sm text-gray-400">لا توجد صلاحيات</span>
